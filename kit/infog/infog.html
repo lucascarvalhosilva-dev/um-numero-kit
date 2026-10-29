@@ -1,0 +1,15 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../fonts.css">
+<script src="../common.js"></script>
+<script>document.write('<script src="temas/' + (new URLSearchParams(location.search).get('t') || 'dolar') + '.js"><\/script>');</script>
+</head>
+<body><canvas id="c"></canvas>
+<script>
+const W = 1080, H = 1920;
+const cv = document.getElementById('c'); cv.width = W; cv.height = H;
+const ctx = cv.getContext('2d');
+const C = { paper: '#F3EEE3', ink: '#1E1E24', blue: '#3255A4', red: '#F65058', yellow: '#FFD23F', sand: '#D9D1C1' };
+</script>
+<script src="../base-prim.js"></script>
+<script src="motor.js"></script>
+</body></html>

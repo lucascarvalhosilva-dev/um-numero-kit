@@ -1,0 +1,114 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../../fonts.css">
+<script src="../../common.js"></script><script src="dados.js"></script><script src="cues.js"></script></head>
+<body><canvas id="c"></canvas>
+<script>
+// UM NÚMERO — MODELO DE VERTICAL 1080x1920 (v3.2.1, 16/10/2026) · base: corte 2 da 6x1 (15/10/2026)
+// v3.2.1: o primeiro bloco (gancho) e o carimbo de fonte já aparecem impressos no quadro 0 (t0 = -1).
+//         Antes o número ainda estava sendo impresso no começo e o primeiro quadro saía em branco.
+// Já resolvido aqui: cabeçalho, carimbo de fonte, folha de impressora entre blocos, abertura de 0,3 s,
+// assinatura final de 1,5 s (gota + anel + "UM NÚMERO"), sons, zonas seguras do TikTok.
+// O que muda a cada vertical: dados.js (números com fonte) e a lista SEQ (os blocos visuais).
+// Tempos: cues.js é gerado por vertical.py audio. Use cap(i) = início da frase i (0 = 1ª frase)
+// ou at('trecho único da frase'). Nunca digite segundos à mão.
+const W = 1080, H = 1920;
+const D = window.DADOS, CUT = window.CUT, CAPS = CUT.caps;
+const cv = document.getElementById('c'); cv.width = W; cv.height = H;
+const ctx = cv.getContext('2d');
+const C = { paper: '#F3EEE3', ink: '#1E1E24', blue: '#3255A4', red: '#F65058', yellow: '#FFD23F', sand: '#D9D1C1' };
+</script>
+<script src="../../base-prim.js"></script>
+<script>
+// zonas seguras: cabeçalho y 150–230 · fonte y ~300 · visual y 380–1160 (+DY) · nada abaixo de 1450 · à direita até x 900 abaixo de y 800
+const X0 = 70, XR = 1010;
+const T = { brand: 'UM NÚMERO', ep: D.tema, src: 'FONTE' };
+const LEAD = 0.3, BREATH = 0.4, ENDC = 1.5; // v3.2: 0,3 s antes da voz · respiro · assinatura
+CAPS.forEach(c => { c.t0 += LEAD; c.t1 += LEAD; });
+const END0 = LEAD + CUT.dur + BREATH, DUR = END0 + ENDC;
+function cap(i) { const c = CAPS[Math.min(i, CAPS.length - 1)]; return c.t0; }
+function at(key, n = 0) { let k = 0; for (const c of CAPS) if (c.txt.toLowerCase().includes(key.toLowerCase())) { if (k === n) return c.t0; k++; } throw new Error('trecho não achado: ' + key); }
+// ponto no meio de uma frase longa, pela posição da palavra no texto (usado na abertura do split, 16/10)
+function inCap(key, word) { const c = CAPS.find(c => c.txt.toLowerCase().includes(key.toLowerCase())); const i = c.txt.toLowerCase().indexOf(word.toLowerCase()); return c.t0 + (c.t1 - c.t0) * Math.max(0, i) / c.txt.length; }
+
+// ---------- componentes prontos ----------
+function sourceV(t, t0, str) { stamp(t, t0, `${T.src}: ${str}`, X0, 300, { size: 17, rot: -1.5 }); }
+function header() {
+  LX.blue.font = F.bs(54); LX.blue.letterSpacing = '1px'; LX.blue.textAlign = 'left'; LX.blue.fillText(T.brand, X0, 205);
+  LX.ink.font = F.mo(20); LX.ink.letterSpacing = '2px'; const w = LX.ink.measureText(T.ep).width; LX.ink.fillText(T.ep, XR - w, 199); LX.ink.fillRect(X0, 226, XR - X0, 2);
+}
+// linha com sinal (+ azul / − vermelho) e texto
+function row(t, tt, y, sign, lay, txt, fs = 52) { if (step12(t) < tt) return; const c = LX[lay]; c.font = F.bs(fs * 1.5); c.letterSpacing = '0px'; c.fillText(sign, X0, y + fs * .45); ptxt('ink', t, tt, txt, X0 + fs * 1.2, y + fs * .32, F.nr(fs)); }
+// cartão com faixa de título vazada (pessoa hipotética, comparação)
+function cardHead(t, t0, x, y, w, h, lbl, lay) { if (step12(t) < t0) return false; card(LX.ink, x, y, w, h); const cl = LX[lay]; cl.fillRect(x, y, w, 62); cl.save(); cl.globalCompositeOperation = 'destination-out'; cl.font = F.mo(24); cl.letterSpacing = '2px'; cl.fillText(lbl, x + 20, y + 42); cl.restore(); return true; }
+// faixa cheia com texto vazado (caixa, rótulo, "manter x cortar")
+const knock = (lay, x, y, w, h, txt, font, tx, ty) => { const c = LX[lay]; c.fillRect(x, y, w, h); c.save(); c.globalCompositeOperation = 'destination-out'; c.font = font; c.letterSpacing = lsOf(font); c.fillText(txt, tx, ty); c.restore(); };
+// linha do tempo de status (proposta → aprovada → sancionada): etapas [[rótulo, sub, aconteceu], ...]
+function statusLine(t, s, etapas, tFalta) {
+  const R = 36, x = 110; etapas.forEach(([lbl, sub, ok], i) => { const y = 480 + i * 200, tl = ok ? s + .1 + i * 1.1 : 1e9;
+    if (i > 0) dotted(step12(t) >= tl ? LX.ink : LX.yellow, x, y - 200 + R + 8, x, y - R - 8, 3);
+    const lit = node(t, tl, i, x, y, R, ok ? 'blue' : 'ink'), tt = lit ? tl : tFalta;
+    if (lit || step12(t) >= tt) { ptxt('ink', t, tt, lbl, x + 64, y - 6, F.mo(26)); ptxt('ink', t, tt + .15, sub, x + 64, y + 46, F.nr(42)); } });
+}
+// semana com folgas (0 = SEG ... 6 = DOM)
+function weekRow(t, t0, y, offs, lbl) {
+  const ds = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'], gx = X0 + 40, cw = 112;
+  if (step12(t) < t0) return; ptxt('ink', t, t0, lbl, gx, y - 50, F.mo(22));
+  ds.forEach((d, j) => { const x = gx + j * cw; ptxt('ink', t, t0, d, x + 22, y - 12, F.mo(18));
+    if (offs.includes(j)) { const c = LX.red; c.save(); c.lineWidth = 3; c.strokeStyle = '#000'; c.strokeRect(x + 6, y, cw - 12, 70); c.restore(); ptxt('red', t, t0 + .2, 'FOLGA', x + 14, y + 46, F.mo(16)); }
+    else halfRect(LX.blue, x + 6, y, cw - 12, 70); });
+}
+// assinatura final (v3.2) — não mexer
+function endCard(t) {
+  const s = END0, cx = W / 2, cy = 860;
+  fallingDrop(t, s + .35, cx, cy, 'ink', .9); waves(t, s + .35, cx, cy, 2, 520);
+  if (step12(t) >= s + .6) bigNum(t, s + .6, 'UM NÚMERO', cx, 1010, 170, 880, 'blue', 'red', 'center');
+}
+
+// ---------- BLOCOS (troque a cada vertical; um bloco a cada 1–2 frases, mudança visual a cada 1–2 s) ----------
+// Estrutura v3.2: gancho → contexto (o que, quem, quando, status) → exemplo prático → explicação → veredito.
+// Regra v3.2.1: tudo o que está no PRIMEIRO bloco e deve estar na tela no quadro 0 usa t0 = -1 (já impresso).
+const N = CAPS.length, q = f => cap(Math.floor(N * f)); // q(0.4) = frase a 40% do texto (só para o modelo rodar com qualquer texto)
+const SEQ = [
+  { at: 0, src: D.gancho.fonte, draw(t) { // gancho: o número grande já impresso no quadro 0
+      bigNum(t, -1, `${D.gancho.valor} ${D.gancho.unidade}`, X0, 700, 260, 900, 'blue', 'red'); ptxt('ink', t, -1, D.gancho.desc, X0 + 4, 790, F.ni(56)); } },
+  { at: q(.15), src: D.status.fonte, draw(t, s) { // contexto: status exato
+      statusLine(t, s, D.status.etapas, s + 2.4); stamp(t, s + 2.8, D.status.aviso, X0 + 10, 1120, { size: 40, layer: 'red', rot: -2 }); } },
+  { at: q(.35), src: 'SIMULAÇÃO · PESSOA HIPOTÉTICA', draw(t, s) { // exemplo prático
+      if (cardHead(t, s + .1, X0, 500, 870, 680, `${D.pessoa.nome} · ${D.pessoa.ocupacao}`, 'blue')) stamp(t, s + .5, 'PESSOA HIPOTÉTICA', 660, 610, { size: 18, rot: 3 });
+      weekRow(t, s + .8, 720, [6], D.pessoa.antes); weekRow(t, s + 2.4, 920, [5, 6], D.pessoa.depois); } },
+  { at: q(.6), src: D.numero.fonte, draw(t, s) { // um número por ideia
+      bigNum(t, s + .1, `${D.numero.valor} ${D.numero.unidade}`, X0, 600, 170, 900, 'blue', 'red'); ptxt('ink', t, s + .4, D.numero.desc, X0 + 4, 680, F.ni(42)); } },
+  { at: q(.8), src: null, draw(t, s) { // veredito sobre a conta
+      D.final.opcoes.forEach((w, i) => { const tt = s + .4 + i * 1.1; if (step12(t) < tt) return; LX.ink.font = F.bs(80); LX.ink.fillText('?', X0, 600 + i * 120); bigNum(t, tt, w, X0 + 70, 600 + i * 120, 90, 800, i ? 'red' : 'blue', i ? 'blue' : 'red'); });
+      if (step12(t) >= s + 4) bigNum(t, s + 4, D.final.veredito, X0, 1100, 150, 880, 'ink', 'red'); } },
+  { at: END0, src: null, draw(t) { endCard(t); } }
+];
+
+// ---------- motor (não mexer) ----------
+function clearLayers() { for (const k in LX) { LX[k].clearRect(0, 0, W, H); LX[k].fillStyle = '#000'; LX[k].textAlign = 'left'; } }
+function paper() { ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H); ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .45; ctx.drawImage(grain, 0, 0); ctx.restore(); }
+function composite(t) {
+  const off = { blue: [0, 0], red: [2.5 + 2.2 * Math.sin(t * 1.7), 1.5 + 1.6 * Math.cos(t * 1.3)], ink: [-.8 * Math.sin(t * 1.1), .6], yellow: [1.5, -1.5] };
+  for (const k of ['yellow', 'blue', 'red', 'ink']) {
+    const x = LX[k]; x.save(); x.globalCompositeOperation = 'source-in'; x.fillStyle = COL[k]; x.fillRect(0, 0, W, H);
+    x.globalCompositeOperation = 'destination-out'; const s = Math.floor(t * 12) % 4; x.drawImage(speck[k], -s * 7, -s * 5, W + 40, H + 40); x.restore();
+    ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = k === 'ink' ? .95 : .9; ctx.drawImage(layers[k], off[k][0], off[k][1]); ctx.restore();
+  }
+}
+const SHEET = .45, DY = 150;
+SEQ.forEach((b, i) => { if (i > 0 && b.at !== END0) b.at = Math.max(b.at, SEQ[i - 1].at + .6); });
+// v3.2.1: o carimbo de fonte do primeiro bloco já entra impresso (t0 = -1)
+function drawBeat(b, t) { clearLayers(); if (b.at !== END0) header(); if (b.src) sourceV(t, b.at === 0 ? -1 : b.at + .05, b.src); for (const k in LX) LX[k].setTransform(1, 0, 0, 1, 0, DY); b.draw(t, Math.max(b.at, 0)); for (const k in LX) LX[k].setTransform(1, 0, 0, 1, 0, 0); }
+function draw(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); paper();
+  let i = SEQ.length - 1; while (i > 0 && t < SEQ[i].at) i--;
+  drawBeat(SEQ[i], t); composite(t);
+  const nx = SEQ[i + 1]; if (nx && t >= nx.at - SHEET) { const p = eInOut(prog(t, nx.at - SHEET, nx.at)), top = lerp(H + 40, 0, p);
+    const pat = ctx.createPattern(dot, 'repeat'); ctx.save(); ctx.globalAlpha = .55; ctx.fillStyle = pat; ctx.globalCompositeOperation = 'multiply'; ctx.fillRect(0, top - 26, W, 26); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.rect(0, top, W, H); ctx.clip(); paper(); clearLayers(); if (nx.at !== END0) header(); composite(t); ctx.restore(); }
+}
+window.DURATION = DUR;
+window.SFX = SEQ.slice(1).map(b => ({ t: Math.max(0, b.at - SHEET), k: 'press' })).concat([{ t: END0 + .35, k: 'drop' }]);
+window.render = (t, fmt = 'jpeg') => { draw(t); return fmt === 'png' ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', .93); };
+window.ready = fontsReady;
+</script></body></html>

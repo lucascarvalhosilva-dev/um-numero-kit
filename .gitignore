@@ -1,0 +1,10 @@
+node_modules/
+kit/infog/temas/
+kit/vertical/*/
+!kit/vertical/modelo/
+*.mp4
+*.wav
+*.mp3
+*.png
+*.jpg
+__pycache__/

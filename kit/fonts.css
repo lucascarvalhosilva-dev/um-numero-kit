@@ -1,0 +1,7 @@
+@font-face{font-family:'BigShoulders';font-weight:900;src:url(node_modules/@fontsource/big-shoulders-display/files/big-shoulders-display-latin-900-normal.woff2)}
+@font-face{font-family:'BigShoulders';font-weight:700;src:url(node_modules/@fontsource/big-shoulders-display/files/big-shoulders-display-latin-700-normal.woff2)}
+@font-face{font-family:'Newsreader';font-weight:400;src:url(node_modules/@fontsource/newsreader/files/newsreader-latin-400-normal.woff2)}
+@font-face{font-family:'Newsreader';font-weight:400;font-style:italic;src:url(node_modules/@fontsource/newsreader/files/newsreader-latin-400-italic.woff2)}
+@font-face{font-family:'Newsreader';font-weight:600;src:url(node_modules/@fontsource/newsreader/files/newsreader-latin-600-normal.woff2)}
+@font-face{font-family:'FragmentMono';font-weight:400;src:url(node_modules/@fontsource/fragment-mono/files/fragment-mono-latin-400-normal.woff2)}
+html,body{margin:0;background:#000}canvas{display:block}

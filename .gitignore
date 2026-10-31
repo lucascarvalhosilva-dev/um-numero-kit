@@ -8,3 +8,5 @@ kit/vertical/*/
 *.png
 *.jpg
 __pycache__/
+kit/package.json
+kit/package-lock.json

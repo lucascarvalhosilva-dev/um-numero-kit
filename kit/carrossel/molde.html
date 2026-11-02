@@ -1,0 +1,171 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../fonts.css">
+<script src="../common.js"></script>
+<script>
+// Molde do carrossel · Um Número (v4.18). Uso: molde.html?w=1080&h=1350&s=1&dados=<pasta>/dados.js
+// 1080x1350 = Instagram 4:5 (texto dentro da faixa central 3:4); 1080x1920 = TikTok modo foto 9:16.
+const Q = new URLSearchParams(location.search);
+const W = +Q.get('w') || 1080, H = +Q.get('h') || 1350, SI = (+Q.get('s') || 1) - 1;
+const C = { paper: '#F3EEE3', ink: '#1E1E24', blue: '#3255A4', red: '#F65058', yellow: '#FFD23F', sand: '#D9D1C1' };
+document.write(`<script src="${Q.get('dados')}"><\/script>`);
+</script>
+<script src="../base-prim.js"></script>
+</head>
+<body><canvas id="c"></canvas>
+<script>
+const D = window.CARR, N = D.slides.length, S = D.slides[SI];
+const cv = document.getElementById('c'); cv.width = W; cv.height = H; const ctx = cv.getContext('2d');
+const T = 99, TALL = H > 1600;
+// área útil: no 9:16 fica longe da interface do TikTok (topo, lateral direita e rodapé)
+const X0 = 90, XW = TALL ? 820 : W - 2 * X0, TOP = TALL ? 230 : 110, BOT = TALL ? 1560 : 1270;
+const k = TALL ? 1.12 : 1;   // escala de fonte no 9:16
+let YEND = 0;                 // onde terminou o conteúdo do slide (visual e fonte ficam abaixo)
+
+function cabecalho() {
+  LX.blue.font = F.bs(46 * k); LX.blue.letterSpacing = '0px'; LX.blue.fillText('UM NÚMERO', X0, TOP);
+  const pg = `${SI + 1}/${N}`; LX.ink.font = F.mo(26 * k); LX.ink.letterSpacing = '2px';
+  LX.ink.fillText(pg, X0 + XW - measure(pg, F.mo(26 * k)), TOP - 6);
+  LX.ink.fillRect(X0, TOP + 22, XW, 3);
+}
+function fonte(f) { if (f) stamp(T, 0, `FONTE: ${f}`, X0 + 12, Math.max(BOT, YEND + 90 * k), { size: 20 * k, rot: -1.5 }); }
+// faixa em tinta com o texto vazado (papel aparece pelas letras)
+function faixa(layer, str, x, y, font, padX = 22, padY = 16) {
+  const s = sizeOf(font), w = measure(str, font), c = LX[layer];
+  c.fillRect(x, y - s - padY + s * .18, w + 2 * padX, s + 2 * padY);
+  c.save(); c.globalCompositeOperation = 'destination-out'; c.font = font; c.letterSpacing = lsOf(font); c.fillText(str, x + padX, y); c.restore();
+  return s + 2 * padY;
+}
+function faixas(layer, str, x, y, font, maxW) { const ls = wrap(str, font, maxW - 44), s = sizeOf(font); let yy = y; ls.forEach(l => { faixa(layer, l, x, yy, font); yy += s * 1.42; }); return yy; }
+
+function capa() {
+  if (S.ordem === 'frase') {   // v2: a frase é o gancho; o número vem depois, como prova
+    stamp(T, 0, S.selo, X0 + 12, TOP + 140 * k, { size: 32 * k, layer: 'blue', rot: -3 });
+    let y = faixas('ink', S.frase, X0, TOP + 290 * k, F.bs(92 * k), XW) + 40 * k;
+    bigNum(T, 0, S.num, X0, y + 200 * k, 230 * k, XW, 'blue', 'red'); y += 250 * k;
+    if (S.legenda_num) { ptxt('ink', T, 0, S.legenda_num, X0 + 6, y, F.mo(26 * k)); y += 70 * k; }
+    if (S.faixa) { faixa('red', S.faixa, X0, y + 20 * k, F.mo(28 * k)); y += 80 * k; }
+    YEND = y; return;
+  }
+  stamp(T, 0, S.selo, X0 + 12, TOP + 150 * k, { size: 34 * k, layer: 'blue', rot: -3 });
+  const n = bigNum(T, 0, S.num, X0, TOP + (TALL ? 620 : 520), TALL ? 330 : 300, XW, 'blue', 'red');
+  let y = TOP + (TALL ? 760 : 650);
+  if (S.legenda_num) { ptxt('ink', T, 0, S.legenda_num, X0 + 6, y, F.mo(26 * k)); y += 90 * k; }
+  y = faixas('ink', S.frase, X0, y + 20, F.bs(78 * k), XW);
+  if (S.faixa) { faixa('red', S.faixa, X0, y + 40 * k, F.mo(28 * k)); y += 80 * k; }
+  YEND = y;
+}
+function texto() {
+  let y = TOP + 170 * k;
+  if (S.rotulo) { ptxt('blue', T, 0, S.rotulo, X0, y, F.mo(28 * k)); y += 90 * k; }
+  if (S.titulo) { y += faixas('ink', S.titulo, X0, y, F.bs(78 * k), XW) - y + 30 * k; }
+  YEND = y + 40 * k + ptxtWrap('ink', T, 0, S.corpo, X0, y + 40 * k, F.nr(56 * k), XW, 1.3);
+}
+function termo() {
+  let y = TOP + 170 * k;
+  ptxt('blue', T, 0, S.rotulo, X0, y, F.mo(28 * k));
+  bigNum(T, 0, S.termo, X0, y + 200 * k, 170 * k, XW, 'ink', 'blue');
+  y += 290 * k;
+  const h = ptxtWrap('ink', T, 0, S.corpo, X0, y, F.nr(50 * k), XW, 1.32); YEND = y + h;
+  if (S.num) {
+    const yn = Math.max(y + h + 170 * k, BOT - 190 * k);
+    LX.ink.fillRect(X0, yn - 150 * k, 120, 4);
+    bigNum(T, 0, S.num, X0, yn, 150 * k, XW * .7, 'blue', 'red');
+    if (S.legenda_num) ptxt('ink', T, 0, S.legenda_num, X0, yn + 50 * k, F.mo(24 * k));
+    YEND = yn + 60 * k;
+  }
+}
+function lista() {
+  let y = TOP + 170 * k;
+  if (S.rotulo) { ptxt('blue', T, 0, S.rotulo, X0, y, F.mo(28 * k)); y += 90 * k; }
+  y = faixas('ink', S.titulo, X0, y, F.bs(66 * k), XW) + 40 * k;
+  S.itens.forEach((it, i) => {
+    LX.blue.font = F.bs(84 * k); LX.blue.letterSpacing = '0px'; LX.blue.fillText(String(i + 1), X0, y + 50 * k);
+    const h = ptxtWrap('ink', T, 0, it, X0 + 90 * k, y, F.nr(46 * k), XW - 90 * k, 1.28);
+    y += Math.max(h, 70 * k) + 46 * k;
+  });
+  YEND = y;
+}
+function cta() {
+  let y = TOP + 200 * k;
+  y = faixas('blue', S.titulo, X0, y, F.bs(84 * k), XW) + 40 * k;
+  YEND = y + 20 * k + ptxtWrap('ink', T, 0, S.corpo, X0, y + 20 * k, F.nr(50 * k), XW, 1.32);
+  arrow(LX.red, X0 + 20, BOT - 200 * k, X0 + 220 * k, BOT - 200 * k, 14, 46);
+  ptxt('ink', T, 0, S.acao, X0 + 260 * k, BOT - 186 * k, F.bs(54 * k));
+}
+// elementos visuais opcionais (campo visual), desenhados na metade de baixo do slide
+function visual(V) {
+  if (!V) return;
+  const OFF = { cadeia: 200, equacao: 60, escala: 130, selo: 110, fluxo: 70, seta: 200 }[V.tipo] * k;
+  const yb = V.tipo === 'fluxo' ? YEND + OFF : Math.max(YEND + OFF, BOT - (TALL ? 520 : 330));
+  if (V.tipo === 'cadeia') {   // elos numerados da cascata: o primeiro em cima, os outros embaixo
+    const r = 46 * k, x0 = X0 + r, n = V.itens.length;
+    LX.blue.beginPath(); LX.blue.arc(x0, yb - 120 * k, r, 0, 7); LX.blue.fill();
+    ptxt('ink', T, 0, V.topo, x0 + r + 30, yb - 104 * k, F.bs(56 * k));
+    V.itens.forEach((it, i) => {
+      const x = X0 + i * (XW / n) + r, y = yb + 110 * k;
+      line(LX.ink, x0, yb - 120 * k + r, x, y - r, 3);
+      LX.ink.beginPath(); LX.ink.arc(x, y, r, 0, 7); LX.ink.lineWidth = 4; LX.ink.strokeStyle = '#000'; LX.ink.stroke();
+      LX.red.font = F.bs(44 * k); LX.red.fillText(String(i + 1), x - 11 * k, y + 16 * k);
+      ptxtWrap('ink', T, 0, it, x - r, y + r + 50 * k, F.mo(22 * k), XW / n - 20);
+    });
+  }
+  if (V.tipo === 'equacao') {  // A − B = C, uma parte por linha
+    let y = yb + 30 * k;
+    V.partes.forEach((p, i) => {
+      const lay = i === V.partes.length - 1 ? 'blue' : 'ink';
+      if (i > 0) ptxt('red', T, 0, V.sinais[i - 1], X0, y, F.bs(80 * k));
+      ptxt(lay, T, 0, p, X0 + 80 * k, y, F.bs(80 * k));
+      y += 100 * k;
+    });
+  }
+  if (V.tipo === 'escala') {   // régua de um lado ao outro, com seta nas duas pontas
+    const y = yb + 40 * k, xa = X0, xb = X0 + XW;
+    arrow(LX.red, (xa + xb) / 2, y, xa + 10, y, 12, 40); arrow(LX.blue, (xa + xb) / 2, y, xb - 10, y, 12, 40);
+    LX.ink.fillRect((xa + xb) / 2 - 3, y - 40 * k, 6, 80 * k);
+    ptxt('red', T, 0, V.esq, xa, y - 60 * k, F.bs(60 * k)); ptxt('blue', T, 0, V.dir, xb, y - 60 * k, F.bs(60 * k), 'right');
+    ptxtWrap('ink', T, 0, V.esq_txt, xa, y + 90 * k, F.mo(22 * k), XW / 2 - 40);
+    const lines = wrap(V.dir_txt, F.mo(22 * k), XW / 2 - 40);
+    lines.forEach((l, i) => ptxt('ink', T, 0, l, xb, y + 90 * k + i * 22 * k * 1.25, F.mo(22 * k), 'right'));
+  }
+  if (V.tipo === 'fluxo') {   // passos em fila, um embaixo do outro, com seta entre eles
+    let y = yb; const bh = 84 * k;
+    V.itens.forEach((it, j) => {
+      const last = j === V.itens.length - 1, lay = last ? (V.cor_ultimo || 'red') : 'ink';
+      if (last) { faixa(lay, it, X0, y + bh * .62, F.bs(46 * k), 26, 20); }
+      else { card(LX.ink, X0, y, XW, bh); ptxt('ink', T, 0, it, X0 + 26, y + bh * .66, F.bs(46 * k)); }
+      if (!last) arrow(LX.blue, X0 + 60, y + bh + 4, X0 + 60, y + bh + 50 * k, 10, 28);
+      y += bh + 56 * k;
+    });
+    if (V.nota) ptxtWrap('ink', T, 0, V.nota, X0, y + 10 * k, F.nr(42 * k), XW, 1.25);
+  }
+  if (V.tipo === 'seta') {    // de um número para outro
+    const s0 = 150 * k, sc = Math.min(1, (XW - 170 * k) / (measure(V.de, F.bs(s0)) + measure(V.para, F.bs(s0)))), fnt = F.bs(s0 * sc), wa = measure(V.de, fnt);
+    halftoneText(LX.red, V.de, X0, yb, fnt); LX.ink.font = fnt; LX.ink.fillText(V.de, X0, yb);
+    arrow(LX.ink, X0 + wa + 30, yb - 55 * k, X0 + wa + 140 * k, yb - 55 * k, 12, 40);
+    bigNum(T, 0, V.para, X0 + wa + 170 * k, yb, s0 * sc, XW - wa - 170 * k, 'blue', 'red');
+    if (V.legenda) ptxt('ink', T, 0, V.legenda, X0, yb + 60 * k, F.mo(26 * k));
+  }
+  if (V.tipo === 'selo') stamp(T, 0, V.texto, X0 + 12, yb - 30 * k, { size: 40 * k, layer: 'red', rot: -4 });
+}
+function conta() {   // v2: a conta pronta, com as premissas no mesmo slide
+  let y = TOP + 170 * k;
+  if (S.rotulo) { ptxt('blue', T, 0, S.rotulo, X0, y, F.mo(28 * k)); y += 90 * k; }
+  y = faixas('ink', S.titulo, X0, y, F.bs(78 * k), XW) + 30 * k;
+  y += ptxtWrap('ink', T, 0, S.corpo, X0, y + 20 * k, F.nr(54 * k), XW, 1.3) + 60 * k;
+  bigNum(T, 0, S.num, X0, y + 150 * k, 190 * k, XW, 'blue', 'red'); y += 200 * k;
+  (S.linhas || []).forEach(l => { ptxt('ink', T, 0, l, X0, y, F.mo(26 * k)); y += 42 * k; });
+  YEND = y;
+}
+const TIPOS = { capa, texto, termo, lista, cta, conta };
+
+function draw() {
+  ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H); ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .45; ctx.drawImage(grain, 0, 0); ctx.restore();
+  for (const kk in LX) { LX[kk].clearRect(0, 0, W, H); LX[kk].fillStyle = '#000'; }
+  cabecalho(); TIPOS[S.tipo](); visual(S.visual); fonte(S.fonte);
+  const off = { blue: [0, 0], red: [2.5, 1.5], ink: [-.8, .6], yellow: [1.5, -1.5] };
+  for (const kk of ['yellow', 'blue', 'red', 'ink']) { const x = LX[kk]; x.save(); x.globalCompositeOperation = 'source-in'; x.fillStyle = COL[kk]; x.fillRect(0, 0, W, H); x.globalCompositeOperation = 'destination-out'; x.drawImage(speck[kk], 0, 0); x.restore();
+    ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = kk === 'ink' ? .95 : .9; ctx.drawImage(layers[kk], off[kk][0], off[kk][1]); ctx.restore(); }
+}
+window.render = () => { draw(); return cv.toDataURL('image/jpeg', .93); };
+window.ready = fontsReady;
+</script></body></html>

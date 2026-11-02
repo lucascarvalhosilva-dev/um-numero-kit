@@ -32,43 +32,54 @@ function pos(t) { if (t <= TY[0]) return 0; for (let i = 0; i < N - 1; i++) if (
 const fill = (lay, txt, x, y, font, align = 'left') => { const c = LX[lay]; c.font = font; c.letterSpacing = lsOf(font); c.textAlign = align; c.fillText(txt, x, y); c.textAlign = 'left'; };
 const knock = (lay, x, y, w, h, txt, font, tx, ty) => { const c = LX[lay]; c.fillRect(x, y, w, h); c.save(); c.globalCompositeOperation = 'destination-out'; c.font = font; c.letterSpacing = lsOf(font); c.fillText(txt, tx, ty); c.restore(); };
 const fitFont = (str, size, maxW) => { const w = measure(str, F.bs(size)); return F.bs(w > maxW ? size * maxW / w : size); };
+// v2 (29/10/2026): letras maiores para celular, gráfico mais alto, marcos no próprio ponto e faixa do marco atual
 function header() {
-  LX.blue.font = F.bs(54); LX.blue.letterSpacing = '1px'; LX.blue.textAlign = 'left'; LX.blue.fillText('UM NÚMERO', X0, 205);
-  LX.ink.font = F.mo(20); LX.ink.letterSpacing = '2px'; const w = LX.ink.measureText(T.tema).width; LX.ink.fillText(T.tema, XR - w, 199); LX.ink.fillRect(X0, 226, XR - X0, 2);
-  stamp(0, -1, `FONTE: ${T.fonte}`, X0, 300, { size: 17, rot: -1.5 });
-  fill('ink', T.titulo, X0, 390, fitFont(T.titulo, 64, XR - X0));
-  fill('ink', T.sub, X0, 432, F.mo(T.sub.length > 46 ? 18 : 21));
+  LX.blue.font = F.bs(50); LX.blue.letterSpacing = '1px'; LX.blue.textAlign = 'left'; LX.blue.fillText('UM NÚMERO', X0, 170);
+  LX.ink.font = F.mo(24); LX.ink.letterSpacing = '2px'; const w = LX.ink.measureText(T.tema).width; LX.ink.fillText(T.tema, XR - w, 164); LX.ink.fillRect(X0, 192, XR - X0, 3);
+  fill('ink', T.titulo, X0, 300, fitFont(T.titulo, 96, XR - X0));
+  const ls = wrap(T.sub, F.mo(25), XR - X0); ls.slice(0, 2).forEach((l, k) => fill('ink', l, X0, 352 + k * 36, F.mo(25)));
 }
+function fonteRodape() { stamp(0, -1, `FONTE: ${T.fonte}`, X0 + 10, 1560, { size: 22, rot: -1.5 }); }
 // contador: rótulo do ponto à esquerda, valor à direita (cor por regra do tema)
 function counter(i, lay) {
   const lb = P[i][0], v = P[i][1];
-  const lf = fitFont(lb, 140, 420), lw = measure(lb, lf); fill('ink', lb, X0, 580, lf);
+  const lf = fitFont(lb, 120, 430), lw = measure(lb, lf); fill('ink', lb, X0, 560, lf);
   if (T.modo === 'duelo') { const o = T.opts, a = `${o.nomeA} ${fmt(v)}`, b = `${o.nomeB} ${fmt(P[i][3])}`;
-    fill('blue', a, XR, 520, fitFont(a, 76, 520), 'right'); fill('ink', b, XR, 600, fitFont(b, 76, 520), 'right'); return; }
-  const big = fmt(v), sh = lay === 'red' ? 'blue' : 'red', fnt = fitFont(big, 140, XR - X0 - lw - 50);
-  LX[sh].save(); LX[sh].translate(5, 4); halftoneText(LX[sh], big, XR - measure(big, fnt), 580, fnt); LX[sh].restore();
-  fill(lay, big, XR, 580, fnt, 'right');
-  if (T.nota && i === N - 1) fill('ink', T.nota, XR, 612, F.mo(17), 'right');
+    fill('blue', a, XR, 500, fitFont(a, 76, 520), 'right'); fill('ink', b, XR, 580, fitFont(b, 76, 520), 'right'); return; }
+  const big = fmt(v), sh = lay === 'red' ? 'blue' : 'red', fnt = fitFont(big, 150, XR - X0 - lw - 50);
+  LX[sh].save(); LX[sh].translate(5, 4); halftoneText(LX[sh], big, XR - measure(big, fnt), 560, fnt); LX[sh].restore();
+  fill(lay, big, XR, 560, fnt, 'right');
+  if (T.nota && i === N - 1) fill('ink', T.nota, XR, 598, F.mo(22), 'right');
 }
 // legenda dos pontos fora da curva (acumula embaixo)
+// faixa do marco: o último marco alcançado aparece grande embaixo do gráfico (número, período, valor e o fato)
 function legend(t, p, opts = {}) {
-  T.marcos.forEach((m, k) => { if (p < m.i - 1e-6) return; const tt = TY[m.i], y = 1232 + k * 42;
-    node(t, tt, k, X0 + 20, y - 8, 18, 'ink');
-    const v = P[m.i][1], txt = m.semValor ? `${P[m.i][0]} · ${m.txt}` : `${P[m.i][0]} · ${fmt(v)} · ${m.txt}`;
-    ptxt('ink', t, tt + .05, txt, X0 + 54, y, F.mo(txt.length > 44 ? 18 : 20)); });
+  let k = -1; T.marcos.forEach((m, j) => { if (p >= m.i - 1e-6) k = j; }); if (k < 0) return;
+  const m = T.marcos[k], tt = TY[m.i], y = 1430;
+  LX.ink.fillRect(X0, y - 78, XR - X0, 3);
+  node(t, tt, k, X0 + 30, y - 14, 26, 'ink');
+  const top = m.semValor ? P[m.i][0] : `${P[m.i][0]} · ${fmt(P[m.i][1])}`;
+  ptxt('blue', t, tt + .05, top, X0 + 80, y - 22, F.mo(30));
+  ptxt('ink', t, tt + .1, m.txt, X0 + 80, y + 34, fitFont(m.txt, 54, XR - X0 - 90));
 }
 // elos no eixo x com guia pontilhada até o ponto
 function axisMarcos(t, p, gx, gyOf, base) {
-  T.marcos.forEach((m, k) => { if (p < m.i - 1e-6) return; const y = gyOf(m.i);
-    dotted(LX.ink, gx(m.i), base - 20, gx(m.i), y + 16, 3); node(t, TY[m.i], k, gx(m.i), base, 18, 'ink'); });
+  const boxes = [];
+  T.marcos.forEach((m, k) => { if (p < m.i - 1e-6) return; const x = gx(m.i), y = gyOf(m.i);
+    dotted(LX.ink, x, base - 10, x, y + 26, 2);
+    // nó numerado acima do ponto; sobe de faixa se encostar num nó anterior
+    let ny = y - 50; for (let tries = 0; tries < 6 && boxes.some(b => Math.abs(b[0] - x) < 52 && Math.abs(b[1] - ny) < 52); tries++) ny -= 56;
+    ny = Math.max(ny, G.top - 10); boxes.push([x, ny]);
+    if (ny < y - 50) dotted(LX.ink, x, ny + 22, x, y - 20, 2);
+    node(t, TY[m.i], k, x, ny, 22, 'ink'); });
 }
-function xLabels(t, p, gx, y) { (T.eixoX || []).forEach(i => { if (p >= i - .01) ptxt('ink', t, TY[i], P[i][2] || P[i][0], gx(i), y, F.mo(20), 'center'); }); }
-function yGrid(G, ticks, gy, lbl) { ticks.forEach(v => { const y = gy(v); fill('ink', lbl(v), X0, y + 7, F.mo(19)); dotted(LX.ink, G.x0 - 10, y, G.x1 + 10, y, 2); }); }
+function xLabels(t, p, gx, y) { (T.eixoX || []).forEach(i => { if (p >= i - .01) ptxt('ink', t, TY[i], P[i][2] || P[i][0], gx(i), y - 10, F.mo(26), 'center'); }); }
+function yGrid(G, ticks, gy, lbl) { ticks.forEach(v => { const y = gy(v); fill('ink', lbl(v), X0, y + 9, F.mo(26)); dotted(LX.ink, G.x0 - 6, y, G.x1 + 10, y, 2); }); }
 function stroke(lay, pts, w = 9) { const c = LX[lay]; c.save(); c.lineWidth = w; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = '#000'; c.beginPath(); pts.forEach((q, k) => k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.stroke(); c.restore(); }
 function head(lay, x, y) { LX[lay].beginPath(); LX[lay].arc(x, y, 14, 0, 7); LX[lay].fill(); LX.ink.save(); LX.ink.lineWidth = 3; LX.ink.strokeStyle = '#000'; LX.ink.beginPath(); LX.ink.arc(x, y, 22, 0, 7); LX.ink.stroke(); LX.ink.restore(); }
 // caminho da linha até a posição fracionária p
 function pathTo(p, X, Y) { const pts = []; const n = Math.floor(p); for (let i = 0; i <= Math.min(n, N - 1); i++) pts.push([X(i), Y(i)]); if (n < N - 1 && p > n) { const k = p - n; pts.push([lerp(X(n), X(n + 1), k), lerp(Y(n), Y(n + 1), k)]); } return pts; }
-const G = { x0: 175, x1: 960, top: 690, bot: 1090 };
+const G = { x0: 160, x1: 990, top: 700, bot: 1250 };
 const gxN = i => G.x0 + (G.x1 - G.x0) * i / (N - 1);
 const linY = (min, max, g = G) => v => g.bot - (v - min) / (max - min) * (g.bot - g.top);
 const logY = (min, max, g = G) => v => g.bot - (Math.log10(v) - Math.log10(min)) / (Math.log10(max) - Math.log10(min)) * (g.bot - g.top);
@@ -81,7 +92,7 @@ const MODOS = {
     yGrid(G, o.ticks, gy, o.tickFmt); line(LX.ink, G.x0, G.bot + 30, G.x1 + 10, G.bot + 30, 3);
     const pts = pathTo(p, gxN, Y);
     if (pts.length > 1) { const c = LX.blue; c.save(); c.beginPath(); c.moveTo(pts[0][0], G.bot); pts.forEach(q => c.lineTo(q[0], q[1])); c.lineTo(pts[pts.length - 1][0], G.bot); c.closePath(); c.fillStyle = c.createPattern(dotS, 'repeat'); c.fill(); c.restore(); }
-    stroke('ink', pts, 7); axisMarcos(t, p, gxN, Y, G.bot + 30); xLabels(t, p, gxN, G.bot + 82);
+    stroke('ink', pts, N > 200 ? 5 : 7); axisMarcos(t, p, gxN, Y, G.bot + 30); xLabels(t, p, gxN, G.bot + 82);
     const h = pts[pts.length - 1]; head('blue', h[0], h[1]);
   },
   escada(t, p, i) { // degraus: subida em vermelho, queda em azul
@@ -220,6 +231,7 @@ function draw(t) {
   header();
   if (T.modo === 'corrida') { counterCorrida(t, p); MODOS.corrida(t, p, i); legendCorrida(t, p); }
   else { counter(i, layV(i)); MODOS[T.modo](t, p, i); legend(t, p); }
+  fonteRodape();
   composite(t);
 }
 window.DURATION = DUR;

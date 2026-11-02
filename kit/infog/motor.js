@@ -13,6 +13,7 @@ const FMT = {
   usdbi: v => `US$ ${nf(v, 1)} BI`, usdtri: v => v >= 1000 ? `US$ ${nf(v / 1000, 1)} TRI` : `US$ ${nf(v, 0)} BI`, rs100: v => `R$ ${nf(v, 2)}`,
   brlx: v => `R$ ${nf(v, v % 1 ? 2 : 0)}`,
   anos1: v => `${nf(v, 1)} ANOS`, usd1: v => `US$ ${nf(v, 1)}`,
+  fil2: v => `${nf(v, 2)} FILHOS`,
   usdbiS: v => `${v > 0 ? '+' : v < 0 ? '−' : ''}US$ ${nf(Math.abs(v), 1)} BI`
 };
 const fmt = FMT[T.fmt];
@@ -120,16 +121,16 @@ const MODOS = {
     const o = T.opts, gy = linY(0, o.max), bw = (G.x1 - G.x0) / N * .74, gx = k => G.x0 + (G.x1 - G.x0) * (k + .5) / N;
     yGrid(G, o.ticks, gy, o.tickFmt); line(LX.ink, G.x0 - 10, G.bot, G.x1 + 10, G.bot, 3);
     for (let k = 0; k <= Math.min(Math.floor(p + 1e-6), N - 1); k++) bar(t, k ? TY[k] : -1, 'blue', gx(k) - bw / 2, G.bot, bw, G.bot - gy(P[k][1]), .3);
-    T.marcos.forEach((m, k) => { if (p < m.i - 1e-6) return; node(t, TY[m.i], k, gx(m.i), gy(P[m.i][1]) - 34, 17, 'ink'); });
-    (T.eixoX || []).forEach(k => { if (p >= k - .01) ptxt('ink', t, TY[k], P[k][2] || P[k][0], gx(k), G.bot + 46, F.mo(20), 'center'); });
+    T.marcos.forEach((m, k) => { if (p < m.i - 1e-6) return; node(t, TY[m.i], k, gx(m.i), gy(P[m.i][1]) - 40, 22, 'ink'); });
+    (T.eixoX || []).forEach(k => { if (p >= k - .01) ptxt('ink', t, TY[k], P[k][2] || P[k][0], gx(k), G.bot + 50, F.mo(26), 'center'); });
   },
   duelo(t, p, i) { // duas linhas (escala log): A azul, B tinta
     const o = T.opts, gy = logY(o.min, o.max), YA = k => gy(P[k][1]), YB = k => gy(P[k][3]);
     yGrid(G, o.ticks, gy, o.tickFmt); line(LX.ink, G.x0, G.bot + 30, G.x1 + 10, G.bot + 30, 3);
     const a = pathTo(p, gxN, YA), b = pathTo(p, gxN, YB); stroke('ink', b, 7); stroke('blue', a, 9);
     const ha = a[a.length - 1], hb = b[b.length - 1]; head('ink', hb[0], hb[1]); head('blue', ha[0], ha[1]);
-    fill('blue', o.nomeA, ha[0] + 30 > G.x1 - 60 ? ha[0] - 30 : ha[0] + 30, ha[1] + (ha[1] > hb[1] ? 36 : -24), F.mo(19), ha[0] + 30 > G.x1 - 60 ? 'right' : 'left');
-    fill('ink', o.nomeB, hb[0] + 30 > G.x1 - 60 ? hb[0] - 30 : hb[0] + 30, hb[1] + (hb[1] >= ha[1] ? 36 : -24), F.mo(19), hb[0] + 30 > G.x1 - 60 ? 'right' : 'left');
+    fill('blue', o.nomeA, ha[0] + 30 > G.x1 - 60 ? ha[0] - 30 : ha[0] + 30, ha[1] + (ha[1] > hb[1] ? 44 : -28), F.mo(26), ha[0] + 30 > G.x1 - 60 ? 'right' : 'left');
+    fill('ink', o.nomeB, hb[0] + 30 > G.x1 - 60 ? hb[0] - 30 : hb[0] + 30, hb[1] + (hb[1] >= ha[1] ? 44 : -28), F.mo(26), hb[0] + 30 > G.x1 - 60 ? 'right' : 'left');
     axisMarcos(t, p, gxN, k => Math.min(YA(k), YB(k)), G.bot + 30); xLabels(t, p, gxN, G.bot + 82);
   },
   calor(t, p, i) { // mapa de calor: linhas = anos, colunas = meses
@@ -148,15 +149,15 @@ const MODOS = {
   },
   tubo(t, p, i) { // medidor de 0 a 100% + rastro do histórico
     const o = T.opts, tx = 95, tw = 150, ty0 = 700, ty1 = 1140, v = lerp(P[Math.floor(p)][1], P[Math.min(Math.floor(p) + 1, N - 1)][1], p - Math.floor(p));
-    const yv = ty1 - (ty1 - ty0) * v / 100; halfRect(LX.red, tx, yv, tw, ty1 - yv); LX.red.fillRect(tx, yv, tw, 10);
-    card(LX.ink, tx, ty0, tw, ty1 - ty0); for (let k = 0; k <= 10; k++) { const y = ty1 - (ty1 - ty0) * k / 10; LX.ink.fillRect(tx + tw, y - 1, k % 5 ? 12 : 22, 3); if (k % 5 === 0) fill('ink', `${k * 10}%`, tx + tw + 30, y + 7, F.mo(18)); }
-    fill('ink', 'DO PIB', tx, ty1 + 40, F.mo(18));
-    const g = { x0: 390, x1: 990, top: 720, bot: 1080 }, gy = linY(o.min, o.max, g), gx = k => g.x0 + (g.x1 - g.x0) * k / (N - 1), Y = k => gy(P[k][1]);
-    o.ticks.forEach(vv => { const y = gy(vv); fill('ink', `${vv}%`, g.x1 + 10, y + 6, F.mo(16), 'right'); dotted(LX.ink, g.x0, y, g.x1 - 50, y, 2); });
+    const TL = o.lay || 'red', yv = ty1 - (ty1 - ty0) * v / 100; halfRect(LX[TL], tx, yv, tw, ty1 - yv); LX[TL].fillRect(tx, yv, tw, 10);
+    card(LX.ink, tx, ty0, tw, ty1 - ty0); for (let k = 0; k <= 10; k++) { const y = ty1 - (ty1 - ty0) * k / 10; LX.ink.fillRect(tx + tw, y - 1, k % 5 ? 12 : 22, 3); if (k % 5 === 0) fill('ink', `${k * 10}%`, tx + tw + 30, y + 9, F.mo(24)); }
+    fill('ink', o.rotulo || 'DO PIB', tx, ty1 + 44, F.mo(24));
+    const g = { x0: 390, x1: 920, top: 720, bot: 1080 }, gy = linY(o.min, o.max, g), gx = k => g.x0 + (g.x1 - g.x0) * k / (N - 1), Y = k => gy(P[k][1]);
+    o.ticks.forEach(vv => { const y = gy(vv); fill('ink', `${vv}%`, XR, y + 8, F.mo(24), 'right'); dotted(LX.ink, g.x0, y, g.x1 + 10, y, 2); });
     line(LX.ink, g.x0, g.bot + 30, g.x1, g.bot + 30, 3);
-    const pts = pathTo(p, gx, Y); stroke('red', pts, 7); const h = pts[pts.length - 1]; head('red', h[0], h[1]);
-    T.marcos.forEach((m, k) => { if (p < m.i - 1e-6) return; dotted(LX.ink, gx(m.i), g.bot + 10, gx(m.i), Y(m.i) + 16, 3); node(t, TY[m.i], k, gx(m.i), g.bot + 30, 16, 'ink'); });
-    (T.eixoX || []).forEach(k => { if (p >= k - .01) ptxt('ink', t, TY[k], P[k][2], gx(k), g.bot + 78, F.mo(18), 'center'); });
+    const pts = pathTo(p, gx, Y); stroke(TL, pts, 7); const h = pts[pts.length - 1]; head(TL, h[0], h[1]);
+    T.marcos.forEach((m, k) => { if (p < m.i - 1e-6) return; dotted(LX.ink, gx(m.i), g.bot + 10, gx(m.i), Y(m.i) + 16, 3); node(t, TY[m.i], k, gx(m.i), g.bot + 30, 20, 'ink'); });
+    (T.eixoX || []).forEach(k => { if (p >= k - .01) ptxt('ink', t, TY[k], P[k][2], gx(k), g.bot + 86, F.mo(26), 'center'); });
   },
   grade(t, p, i) { // grade 10x10 = R$ 100 de renda; cada quadrado = R$ 1
     const o = T.opts, n0 = Math.floor(p), v = lerp(P[n0][1], P[Math.min(n0 + 1, N - 1)][1], p - n0), cs = 44, gx0 = X0, gy0 = 700;

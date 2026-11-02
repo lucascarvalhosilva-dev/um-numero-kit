@@ -93,3 +93,20 @@ function bar(t, t0, layer, x, base, w, h, d = .5) {
 }
 function halfRect(c, x, y, w, h, small = false) { c.save(); c.fillStyle = c.createPattern(small ? dotS : dot, 'repeat'); c.fillRect(x, y, w, h); c.restore(); }
 function card(c, x, y, w, h) { c.save(); c.lineWidth = 3; c.strokeStyle = '#000'; c.strokeRect(x, y, w, h); c.restore(); }
+// v4.27 (02/11/2026): capa e quadro 0 em modo "frase". A frase do bolso é o título; o número vira prova.
+// K = { status, frase, destaque: ['PALAVRA'], cor: 'red'|'blue', qual, prova, fonte }
+// Desenha a partir de y0, largura maxW; devolve o y final. Usado em capa.html e no 1º bloco da cena (t0 = -1).
+function fraseBloco(t, t0, K, x, y0, maxW, opt = {}) {
+  const { max = 170, min = 104, maxLines = 4, lh = 1.0 } = opt;
+  let s = max, lines; do { lines = wrap(K.frase, F.bs(s), maxW); if (lines.length <= maxLines && lines.every(l => measure(l, F.bs(s)) <= maxW)) break; s -= 4; } while (s > min);
+  const font = F.bs(s), dest = new Set((K.destaque || []).map(w => w.toUpperCase())), cor = K.cor || 'red';
+  let y = y0;
+  if (K.status) { stamp(t, t0, K.status, x + 10, y, { size: 36, layer: cor === 'red' ? 'red' : 'blue', rot: -3 }); y += 70; }
+  y += s * .9;
+  lines.forEach((l, i) => { let xx = x; for (const w of l.split(' ')) { const clean = w.replace(/[^\p{L}\p{N}%$]/gu, '').toUpperCase(); ptxt(dest.has(clean) ? cor : 'ink', t, t0 + i * .1, w, xx, y, font); xx += measure(w + ' ', font); } y += s * lh; });
+  y += 10;
+  if (K.qual) { ptxt('blue', t, t0 + .2, K.qual, x + 4, y + 30, F.mo(fitMono(K.qual, 44, maxW))); y += 90; }
+  if (K.prova) { y += ptxtWrap('ink', t, t0 + .3, K.prova, x + 4, y + 40, F.nr(46), maxW, 1.15) + 10; }
+  return y;
+}
+function fitMono(str, size, maxW) { let z = size; while (z > 26 && measure(str, F.mo(z)) > maxW) z--; return z; }

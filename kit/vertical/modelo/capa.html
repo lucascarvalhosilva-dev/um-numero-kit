@@ -15,12 +15,17 @@ function draw() {
   ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H); ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .45; ctx.drawImage(grain, 0, 0); ctx.restore();
   for (const k in LX) { LX[k].clearRect(0, 0, W, H); LX[k].fillStyle = '#000'; }
   LX.blue.font = F.bs(60); LX.blue.fillText('UM NÚMERO', X0, 380); LX.ink.font = F.mo(24); LX.ink.letterSpacing = '2px'; const w = LX.ink.measureText(D.tema).width; LX.ink.fillText(D.tema, W - X0 - w, 374); LX.ink.fillRect(X0, 402, W - 2 * X0, 3);
-  stamp(T, 0, K.selo, X0 + 10, 560, { size: 44, layer: 'blue', rot: -3 });
-  bigNum(T, 0, K.l1, X0, 860, 260, W - 2 * X0, 'blue', 'red');
-  if (K.l2) bigNum(T, 0, K.l2, X0, 1110, 260, W - 2 * X0, 'ink', 'red');
-  arrow(LX.ink, X0 + 40, 1200, X0 + 40, 1420, 16, 56);
-  ptxtWrap('ink', T, 0, K.frase, X0 + 120, 1290, F.nr(54), 760);
-  stamp(T, 0, `FONTE: ${K.fonte}`, X0, 1580, { size: 20, rot: -1.5 });
+  let yF = 0;
+  if (K.modo === 'frase') { // v4.27: frase do bolso como título, número como prova (regras-verticais.md, Abertura visual e capa)
+    yF = fraseBloco(T, 0, K, X0, 520, W - 2 * X0, { max: 180 });
+  } else { // modo antigo (número): só com o "de quê" no l2 ou na frase
+    stamp(T, 0, K.selo, X0 + 10, 560, { size: 44, layer: 'blue', rot: -3 });
+    bigNum(T, 0, K.l1, X0, 860, 260, W - 2 * X0, 'blue', 'red');
+    if (K.l2) bigNum(T, 0, K.l2, X0, 1110, 260, W - 2 * X0, 'ink', 'red');
+    arrow(LX.ink, X0 + 40, 1200, X0 + 40, 1420, 16, 56);
+    ptxtWrap('ink', T, 0, K.frase, X0 + 120, 1290, F.nr(54), 760);
+  }
+  stamp(T, 0, `FONTE: ${K.fonte}`, X0, Math.min(1650, Math.max(1580, yF + 40)), { size: 20, rot: -1.5 });
   const off = { blue: [0, 0], red: [2.5, 1.5], ink: [-.8, .6], yellow: [1.5, -1.5] };
   for (const k of ['yellow', 'blue', 'red', 'ink']) { const x = LX[k]; x.save(); x.globalCompositeOperation = 'source-in'; x.fillStyle = COL[k]; x.fillRect(0, 0, W, H); x.globalCompositeOperation = 'destination-out'; x.drawImage(speck[k], 0, 0); x.restore();
     ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = k === 'ink' ? .95 : .9; ctx.drawImage(layers[k], off[k][0], off[k][1]); ctx.restore(); }

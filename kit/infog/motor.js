@@ -19,7 +19,8 @@ const FMT = {
 const fmt = FMT[T.fmt];
 
 // ---------- tempos: passo calculado para o vídeo ter DUR_ALVO ----------
-const LEAD = 1.0, FIM = T.fim || 4.5, HOLD_M = T.holdMarco || 1.2;
+// marco com motivo (m.por, 02/11/2026): a pausa sobe para dar tempo de ler a explicação
+const LEAD = 1.0, FIM = T.fim || 4.5, HOLD_M = T.holdMarco || (T.marcos.some(m => m.por) ? 2.2 : 1.2);
 const isM = i => T.marcos.some(m => m.i === i);
 const W8 = P.map((p, i) => (T.peso ? T.peso(i) : 1));
 const HOLDS = P.map((p, i) => (isM(i) ? HOLD_M : 0) + (T.holdExtra ? T.holdExtra(i) : 0));
@@ -60,8 +61,10 @@ function legend(t, p, opts = {}) {
   LX.ink.fillRect(X0, y - 78, XR - X0, 3);
   node(t, tt, k, X0 + 30, y - 14, 26, 'ink');
   const top = m.semValor ? P[m.i][0] : `${P[m.i][0]} · ${fmt(P[m.i][1])}`;
-  ptxt('blue', t, tt + .05, top, X0 + 80, y - 22, F.mo(30));
-  ptxt('ink', t, tt + .1, m.txt, X0 + 80, y + 34, fitFont(m.txt, 54, XR - X0 - 90));
+  ptxt('blue', t, tt + .05, top, X0 + 80, y - (m.por ? 34 : 22), F.mo(30));
+  ptxt('ink', t, tt + .1, m.txt, X0 + 80, y + (m.por ? 20 : 34), fitFont(m.txt, 54, XR - X0 - 90));
+  // por quê (02/11/2026): uma linha curta com o motivo do ponto fora da curva
+  if (m.por) { let z = 28; while (z > 22 && measure(m.por, F.mo(z)) > XR - X0 - 90) z--; ptxt('ink', t, tt + .35, m.por, X0 + 80, y + 64, F.mo(z)); }
 }
 // elos no eixo x com guia pontilhada até o ponto
 function axisMarcos(t, p, gx, gyOf, base) {

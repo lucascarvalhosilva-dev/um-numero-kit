@@ -69,8 +69,9 @@ function endCard(t) {
 // Regra v3.2.1: tudo o que está no PRIMEIRO bloco e deve estar na tela no quadro 0 usa t0 = -1 (já impresso).
 const N = CAPS.length, q = f => cap(Math.floor(N * f)); // q(0.4) = frase a 40% do texto (só para o modelo rodar com qualquer texto)
 const SEQ = [
-  { at: 0, src: D.gancho.fonte, draw(t) { // gancho: o número grande já impresso no quadro 0
-      bigNum(t, -1, `${D.gancho.valor} ${D.gancho.unidade}`, X0, 700, 260, 900, 'blue', 'red'); ptxt('ink', t, -1, D.gancho.desc, X0 + 4, 790, F.ni(56)); } },
+  { at: 0, src: (D.capa && D.capa.fonte) || D.gancho.fonte, draw(t) { // quadro 0 = capa (v4.27): já impresso (t0 = -1)
+      if (D.capa && D.capa.modo === 'frase') fraseBloco(t, -1, D.capa, X0, 400, 900, { max: 132 });
+      else { bigNum(t, -1, `${D.gancho.valor} ${D.gancho.unidade}`, X0, 700, 260, 900, 'blue', 'red'); ptxt('ink', t, -1, D.gancho.desc, X0 + 4, 790, F.ni(56)); } } },
   { at: q(.15), src: D.status.fonte, draw(t, s) { // contexto: status exato
       statusLine(t, s, D.status.etapas, s + 2.4); stamp(t, s + 2.8, D.status.aviso, X0 + 10, 1120, { size: 40, layer: 'red', rot: -2 }); } },
   { at: q(.35), src: 'SIMULAÇÃO · PESSOA HIPOTÉTICA', draw(t, s) { // exemplo prático

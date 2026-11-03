@@ -227,7 +227,7 @@ function aberturaCSons(K, T) { const s = [{ t: .05, k: 'slide' }, { t: T.selo, k
 function typed(str, t0, t, cps) { if (t < t0) return ''; return str.slice(0, Math.min(str.length, 1 + Math.floor((t - t0) * cps))); }
 function cursor(layer, x, y, s, t) { if (Math.floor(t * 3) % 2 === 0) LX[layer].fillRect(x + 6, y - s * .78, s * .09, s * .86); }
 function tempoD(K, T) { const full = K.frase, cps = Math.max(24, full.length / 1.05), t0 = -.12, fim = t0 + full.length / cps;
-  return { cps, t0, fim, T: Object.assign({}, T, { selo: fim + .1, marca: fim + .35, qual: Math.max(T.qual, fim + .8) }) }; }
+  return { cps, t0, fim, T: Object.assign({}, T, { selo: fim + .1, marca: fim + .35, qual: Math.min(T.prova - .3, Math.max(T.qual, fim + .8)) }) }; }
 function aberturaD(t, K, x, y0, maxW, T) { const d = tempoD(K, T); return aberturaB(t, K, x, y0, maxW, d.T, { digitar: [d.t0, d.cps, d.fim] }); }
 function aberturaDSons(K, T) { const d = tempoD(K, T), s = [];
   for (let i = 0; i < K.frase.length; i++) if (K.frase[i] !== ' ') s.push({ t: d.t0 + i / d.cps, k: 'click' });

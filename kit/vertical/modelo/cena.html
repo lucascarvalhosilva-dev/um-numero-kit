@@ -68,7 +68,15 @@ function endCard(t) {
 // Estrutura v3.2: gancho → contexto (o que, quem, quando, status) → exemplo prático → explicação → veredito.
 // Regra v3.2.1: tudo o que está no PRIMEIRO bloco e deve estar na tela no quadro 0 usa t0 = -1 (já impresso).
 // v4.30: tempos da abertura (quadro 0). selo e marca-texto no 1º segundo, qual ~1 s, prova na 2ª frase do gancho, lacuna perto do fim do gancho.
-const ABRE = { fim: cap(2), selo: LEAD + .1, marca: LEAD + .45, qual: LEAD + 1.1, prova: cap(1), lacuna: Math.max(cap(1) + .5, cap(2) - 1.4) };
+// v4.30: todo texto da abertura fica na tela pelo menos 1,5 s + 0,3 s por palavra antes de a folha virar (cap(2)).
+const RL = s => 1.5 + .3 * String(s || '').split(/\s+/).filter(Boolean).length;
+const ABRE = (() => { const K = D.capa || {}, fim = cap(2), prova = Math.max(LEAD + .9, Math.min(cap(1), fim - RL(K.prova)));
+  return { fim, selo: LEAD + .1, marca: LEAD + .45, qual: Math.max(LEAD + .6, Math.min(LEAD + 1.1, prova - RL(K.qual) + .9)), prova, lacuna: Math.max(LEAD + 1, Math.min(cap(1) + .5, fim - RL(K.lacuna))) }; })();
+window.ABRE_AVISO = (() => { const K = D.capa || {}; if (K.modo !== 'frase') return ''; const a = [];
+  if (ABRE.fim - ABRE.prova < RL(K.prova) - .05) a.push(`prova fica ${(ABRE.fim - ABRE.prova).toFixed(1)} s (precisa de ${RL(K.prova).toFixed(1)} s): encurte a prova ou o gancho fica curto demais`);
+  if (K.prova && String(K.prova).split(/\s+/).length > 7) a.push('prova com mais de 7 palavras: encurte');
+  if (K.lacuna && ABRE.fim - ABRE.lacuna < RL(K.lacuna) - .05) a.push('lacuna entra tarde demais para ser lida');
+  return a.join(' · '); })();
 const N = CAPS.length, q = f => cap(Math.floor(N * f)); // q(0.4) = frase a 40% do texto (só para o modelo rodar com qualquer texto)
 const SEQ = [
   { at: 0, src: (D.capa && D.capa.fonte) || D.gancho.fonte, draw(t) { // quadro 0 = capa (v4.27): frase já impressa (t0 = -1)

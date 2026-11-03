@@ -106,6 +106,8 @@ def folhas(pg, minimo=4.0):
     print(f'folhas: {len(durs)} · menor {min(durs):.2f} s · média {sum(durs) / len(durs):.2f} s')
     for i, d in enumerate(durs): print(f'  folha {i:2d} · início {ats[i]:6.2f} s · {d:5.2f} s' + ('  (chamada para seguir)' if i in cta else '') + ('  <-- ABAIXO DO MÍNIMO' if (i, d) in curtas else ''))
     if curtas: print(f'ATENÇÃO: {len(curtas)} folha(s) abaixo do mínimo — junte com a vizinha ou estique antes de renderizar (nunca a chamada para seguir com a frase final)')
+    av = pg.evaluate('window.ABRE_AVISO || ""')
+    if av: print('ERRO na abertura (v4.30):', av)
     if durs and durs[0] > 5: print(f'ERRO: a 1ª folha (capa) fica {durs[0]:.1f} s parada; ela cobre só o gancho (até 5 s). Comece o contexto numa folha nova.')
     for i in cta:
         a, z = ats[i], (ats[i + 1] if i + 1 < len(ats) else 1e9)

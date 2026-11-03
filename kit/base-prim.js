@@ -215,5 +215,83 @@ function aberturaC(t, K, x, y0, maxW, T) {
   zoomOut();
 }
 function aberturaCSons(K, T) { const s = [{ t: .05, k: 'slide' }, { t: T.selo, k: 'slide' }, { t: T.qual, k: 'click' }, { t: T.qual + .25, k: 'pencil', d: .35 }, { t: T.prova, k: 'flap' }, { t: T.prova + .4, k: 'tick' }]; if (K.lacuna) s.push({ t: T.lacuna, k: 'thud' }); return s; }
-function aberturaEstilo(t, K, x, y0, maxW, T) { const e = (K.estilo || 'A').toUpperCase(); if (e === 'B') return aberturaB(t, K, x, y0, maxW, T); if (e === 'C') return aberturaC(t, K, x, y0, maxW, T); return abertura(t, K, x, y0, maxW, T); }
-function aberturaEstiloSons(K, T) { const e = (K.estilo || 'A').toUpperCase(); return e === 'B' ? aberturaBSons(K, T) : e === 'C' ? aberturaCSons(K, T) : aberturaSons(K, T); }
+
+// ---------- v4.30: aberturas D, E e F ----------
+// D · "Máquina de escrever": a frase é datilografada caractere a caractere (~1 s, com som de tecla); a palavra em
+// destaque é reimpressa na cor no fim; o qual e a prova também são datilografados; a prova conta até o valor.
+// Atenção: o 1º quadro já traz a 1ª palavra, mas a frase inteira só fecha em ~1 s (a capa do post continua a capa.jpg).
+function typed(str, t0, t, cps) { if (t < t0) return ''; return str.slice(0, Math.min(str.length, 1 + Math.floor((t - t0) * cps))); }
+function cursor(layer, x, y, s, t) { if (Math.floor(t * 3) % 2 === 0) LX[layer].fillRect(x + 6, y - s * .78, s * .09, s * .86); }
+function aberturaD(t, K, x, y0, maxW, T) {
+  const cor = K.cor || 'red', ts = step12(t), L = fraseLayout(K, x, y0 + 70, maxW, 132);
+  zoomIn(t, T.fim, .05);
+  const full = L.words.map(o => o.w).join(' '), cps = Math.max(24, full.length / 1.05), t0 = -.12; // termina em ~1 s
+  let left = typed(full, t0, t, cps).length, lastX = x, lastY = L.words[0].y;
+  for (const o of L.words) { if (left <= 0) break; const part = o.w.slice(0, left); left -= o.w.length + 1;
+    const done = part.length === o.w.length, inked = o.dest && t >= t0 + full.length / cps + .15;
+    txt(inked ? cor : 'ink', part, o.x, o.y, L.font); lastX = o.x + measure(part, L.font); lastY = o.y; }
+  const fimFrase = t0 + full.length / cps;
+  if (t < fimFrase + .6) cursor('ink', lastX, lastY, L.s, t);
+  if (K.status) stamp(t, fimFrase + .15, K.status, x + 10, y0, { size: 36, layer: cor, rot: -3 });
+  let y = L.bottom + 40;
+  if (K.qual) { const q = typed(K.qual, T.qual, t, 30), f = F.mo(fitMono(K.qual, 44, maxW)); txt('blue', q, x + 4, y + 30, f); if (q && q.length < K.qual.length) cursor('blue', x + 4 + measure(q, f), y + 30, 44, t); }
+  y += 90;
+  if (K.prova && t >= T.prova) { const P = provaPartes(K.prova), p = clamp((ts - T.prova) / .7);
+    if (P.num) { bigNum(t, T.prova, contador(P.num, p), x, y + 140, 150, maxW, 'blue', 'yellow'); y += 160; }
+    if (P.resto) { const r = typed(P.resto, T.prova + .3, t, 34); txt('ink', r, x + 4, y + 30, F.nr(42)); } }
+  if (K.lacuna) stamp(t, T.lacuna, K.lacuna, W - 80, y0 + 10, { size: 48, layer: 'red', rot: 7, align: 'right' });
+  zoomOut();
+}
+function aberturaDSons(K, T) { const full = K.frase, cps = Math.max(24, full.length / 1.05), s = [];
+  for (let i = 0; i < full.length; i++) if (full[i] !== ' ' || i % 3 === 0) s.push({ t: Math.max(0, -.12 + i / cps), k: 'click' });
+  s.push({ t: -.12 + full.length / cps + .15, k: 'thud' });
+  if (K.qual) for (let i = 0; i < K.qual.length; i += 2) s.push({ t: T.qual + i / 30, k: 'click' });
+  if (K.prova) { s.push({ t: T.prova, k: 'tick' }); const r = provaPartes(K.prova).resto; for (let i = 0; i < r.length; i += 3) s.push({ t: T.prova + .3 + i / 34, k: 'click' }); }
+  if (K.lacuna) s.push({ t: T.lacuna, k: 'thud' }); return s.filter(e => e.t >= 0); }
+
+// E · "Etiquetadora": cada palavra ganha, no ritmo da fala, uma etiqueta de papel colada por trás (amarela; a palavra
+// em destaque, vermelha), com um pulo e um clique de rotuladora; status, qual e prova também viram etiquetas.
+function etiqueta(t, t0, layer, x, y, w, h, rot) { if (step12(t) < t0) return; const p = clamp((step12(t) - t0) / (2 / 12)), sc = 1.3 - .3 * p, c = LX[layer];
+  c.save(); c.translate(x + w / 2, y + h / 2); c.rotate(rot * Math.PI / 180); c.scale(sc, sc); c.fillRect(-w / 2, -h / 2, w, h); c.restore(); }
+function aberturaE(t, K, x, y0, maxW, T) {
+  const cor = K.cor || 'red', ts = step12(t), L = fraseLayout(K, x, y0 + 70, maxW, 132), n = L.words.length;
+  zoomIn(t, T.fim, .07);
+  const ta = .15, tb = Math.max(ta + .9, (T.prova || T.fim) - .3);
+  L.words.forEach((o, i) => { const rot = ((i * 37) % 5 - 2) * 1.2; etiqueta(t, ta + (tb - ta) * i / n, o.dest ? cor : 'yellow', o.x - 10, o.y - L.s * .78, o.ww + 20, L.s * .86, rot); txt('ink', o.w, o.x, o.y, L.font); });
+  if (K.status) { const f = F.mo(34), w = measure(K.status, f) + 30; etiqueta(t, T.selo, 'blue', x, y0 - 44, w, 58, -2); if (ts >= T.selo) { LX.ink.save(); LX.ink.translate(x + w / 2, y0 - 15); LX.ink.rotate(-2 * Math.PI / 180); txt('ink', K.status, -w / 2 + 15, 12, f); LX.ink.restore(); } }
+  let y = L.bottom + 40;
+  if (K.qual) { const f = F.mo(fitMono(K.qual, 44, maxW)), w = measure(K.qual, f) + 30; etiqueta(t, T.qual, 'yellow', x, y - 8, w, 56, 1.5); if (ts >= T.qual) txt('blue', K.qual, x + 15, y + 30, f); }
+  y += 90;
+  if (K.prova && ts >= T.prova) { const P = provaPartes(K.prova), f = F.bs(96), lab = P.num || K.prova, w = measure(lab, f) + 40;
+    etiqueta(t, T.prova, cor, x, y, w, 120, -2.5); txt('ink', contador(lab, clamp((ts - T.prova - .15) / .6)), x + 20, y + 98, f);
+    if (P.resto) ptxtWrap('ink', t, T.prova + .3, P.resto, x + w + 24, y + 50, F.nr(40), maxW - w - 30, 1.1); }
+  if (K.lacuna) { const f = F.bs(64), w = measure(K.lacuna, f) + 40; etiqueta(t, T.lacuna, 'red', W - 80 - w, y0 - 70, w, 90, 6); if (ts >= T.lacuna) { LX.ink.save(); LX.ink.translate(W - 80 - w / 2, y0 - 25); LX.ink.rotate(6 * Math.PI / 180); txt('ink', K.lacuna, -w / 2 + 20, 24, f); LX.ink.restore(); } }
+  zoomOut();
+}
+function aberturaESons(K, T) { const n = K.frase.split(' ').length, ta = .15, tb = Math.max(ta + .9, (T.prova || T.fim) - .3), s = [];
+  for (let i = 0; i < n; i++) s.push({ t: ta + (tb - ta) * i / n, k: 'click' });
+  s.push({ t: T.selo, k: 'click' }, { t: T.qual, k: 'click' }, { t: T.prova, k: 'thud' }); if (K.lacuna) s.push({ t: T.lacuna, k: 'thud' }); return s; }
+
+// F · "Cortes secos": a guilhotina corta a frase ao meio (as metades escorregam e voltam), depois dois cortes de
+// aproximação em degrau na palavra em destaque (o "punch-in" da edição), prova e lacuna entram no último degrau.
+function aberturaF(t, K, x, y0, maxW, T) {
+  const cor = K.cor || 'red', ts = step12(t), L = fraseLayout(K, x, y0 + 70, maxW, 132);
+  const D = L.words.find(o => o.dest) || L.words[L.words.length - 1], fx = D.x + D.ww / 2, fy = D.y - L.s * .4 + 0;
+  const p1 = T.selo + .55, p2 = T.qual + .45, z = ts >= p2 ? 1.12 : ts >= p1 ? 1.06 : 1; // degraus secos, sem transição; a margem esquerda fica parada
+  for (const k in LX) { LX[k].save(); LX[k].transform(z, 0, 0, z, x * (1 - z), fy * (1 - z)); }
+  const cut = ts >= T.selo && ts < T.selo + 3 / 12, mid = y0 + 70 + (L.bottom - y0 - 70) * .5, dx = cut ? 38 : 0;
+  for (const o of L.words) for (const [y1, y2, off] of [[0, mid, -dx], [mid, H, dx]]) { const c = LX[o.dest ? cor : 'ink']; c.save(); c.beginPath(); c.rect(-200, y1, W + 400, y2 - y1); c.clip(); c.font = L.font; c.letterSpacing = lsOf(L.font); c.fillText(o.w, o.x + off, o.y); c.restore(); }
+  if (ts >= T.selo && ts < T.selo + 5 / 12) { const c = LX.red; c.save(); c.fillRect(-100, mid - 4, W + 200, 8); c.restore(); } // risco da lâmina
+  if (K.status) stamp(t, T.selo + .1, K.status, x + 10, y0, { size: 36, layer: cor, rot: -3 });
+  let y = L.bottom + 40;
+  if (K.qual) ptxt('blue', t, T.qual, K.qual, x + 4, y + 30, F.mo(fitMono(K.qual, 44, maxW)));
+  y += 90;
+  if (K.prova && ts >= T.prova) { const P = provaPartes(K.prova);
+    if (P.num) { bigNum(t, T.prova, contador(P.num, clamp((ts - T.prova) / .7)), x, y + 130, 140, maxW, cor === 'red' ? 'red' : 'blue', 'yellow'); y += 150; }
+    if (P.resto) ptxtWrap('ink', t, T.prova + .3, P.resto, x + 4, y + 30, F.nr(42), maxW, 1.15); }
+  if (K.lacuna) stamp(t, T.lacuna, K.lacuna, W - 120, y0 + 10, { size: 48, layer: 'red', rot: 7, align: 'right' });
+  for (const k in LX) LX[k].restore();
+}
+function aberturaFSons(K, T) { const s = [{ t: T.selo, k: 'slide' }, { t: T.selo + .02, k: 'thud' }, { t: T.selo + .65, k: 'thud' }, { t: T.qual, k: 'click' }, { t: T.qual + .55, k: 'thud' }, { t: T.prova, k: 'tick' }]; if (K.lacuna) s.push({ t: T.lacuna, k: 'thud' }); return s; }
+function aberturaEstilo(t, K, x, y0, maxW, T) { const f = { B: aberturaB, C: aberturaC, D: aberturaD, E: aberturaE, F: aberturaF }[(K.estilo || 'A').toUpperCase()] || abertura; return f(t, K, x, y0, maxW, T); }
+function aberturaEstiloSons(K, T) { const f = { B: aberturaBSons, C: aberturaCSons, D: aberturaDSons, E: aberturaESons, F: aberturaFSons }[(K.estilo || 'A').toUpperCase()] || aberturaSons; return f(K, T); }

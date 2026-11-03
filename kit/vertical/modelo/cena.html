@@ -67,12 +67,14 @@ function endCard(t) {
 // ---------- BLOCOS (troque a cada vertical; um bloco a cada 1–2 frases, mudança visual a cada 1–2 s) ----------
 // Estrutura v3.2: gancho → contexto (o que, quem, quando, status) → exemplo prático → explicação → veredito.
 // Regra v3.2.1: tudo o que está no PRIMEIRO bloco e deve estar na tela no quadro 0 usa t0 = -1 (já impresso).
+// v4.30: tempos da abertura (quadro 0). selo e marca-texto no 1º segundo, qual ~1 s, prova na 2ª frase do gancho, lacuna perto do fim do gancho.
+const ABRE = { fim: cap(2), selo: LEAD + .1, marca: LEAD + .45, qual: LEAD + 1.1, prova: cap(1), lacuna: Math.max(cap(1) + .5, cap(2) - 1.4) };
 const N = CAPS.length, q = f => cap(Math.floor(N * f)); // q(0.4) = frase a 40% do texto (só para o modelo rodar com qualquer texto)
 const SEQ = [
   { at: 0, src: (D.capa && D.capa.fonte) || D.gancho.fonte, draw(t) { // quadro 0 = capa (v4.27): frase já impressa (t0 = -1)
       // v4.29: esta folha cobre SÓ o gancho (até a 1ª pausa, ~3–4 s). Nada parado: a linha do qual entra ~1 s e a prova na 2ª frase do gancho.
       // O contexto ("o que aconteceu, quem, quando") abre a folha seguinte: o próximo bloco começa em cap(2) ou no 1º trecho depois da pausa.
-      if (D.capa && D.capa.modo === 'frase') fraseBloco(t, -1, D.capa, X0, 400, 900, { max: 132, tQual: LEAD + 1.0, tProva: cap(1) });
+      if (D.capa && D.capa.modo === 'frase') abertura(t, D.capa, X0, 400, 900, ABRE); // v4.30: abertura animada (base-prim.js)
       else { bigNum(t, -1, `${D.gancho.valor} ${D.gancho.unidade}`, X0, 700, 260, 900, 'blue', 'red'); ptxt('ink', t, -1, D.gancho.desc, X0 + 4, 790, F.ni(56)); } } },
   { at: cap(2), src: D.status.fonte, draw(t, s) { // contexto: status exato (v4.29: começa logo depois do gancho, nunca dentro da folha da capa)
       statusLine(t, s, D.status.etapas, s + 2.4); stamp(t, s + 2.8, D.status.aviso, X0 + 10, 1120, { size: 40, layer: 'red', rot: -2 }); } },
@@ -111,7 +113,7 @@ function draw(t) {
     ctx.save(); ctx.beginPath(); ctx.rect(0, top, W, H); ctx.clip(); paper(); clearLayers(); if (nx.at !== END0) header(); composite(t); ctx.restore(); }
 }
 window.DURATION = DUR;
-window.SFX = SEQ.slice(1).map(b => ({ t: Math.max(0, b.at - SHEET), k: 'press' })).concat([{ t: END0 + .35, k: 'drop' }]);
+window.SFX = SEQ.slice(1).map(b => ({ t: Math.max(0, b.at - SHEET), k: 'press' })).concat([{ t: END0 + .35, k: 'drop' }]).concat(D.capa && D.capa.modo === 'frase' ? aberturaSons(D.capa, ABRE) : []);
 window.render = (t, fmt = 'jpeg') => { draw(t); return fmt === 'png' ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', .93); };
 window.ready = fontsReady;
 </script></body></html>

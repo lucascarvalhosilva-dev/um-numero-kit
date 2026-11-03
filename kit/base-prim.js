@@ -110,3 +110,31 @@ function fraseBloco(t, t0, K, x, y0, maxW, opt = {}) {
   return y;
 }
 function fitMono(str, size, maxW) { let z = size; while (z > 26 && measure(str, F.mo(z)) > maxW) z--; return z; }
+// v4.30 (02/11/2026): abertura animada do quadro 0. O 1º quadro já mostra a frase (legível no feed); nos 3–5 s do gancho
+// algo novo acontece a cada ~0,5–1 s: aproximação lenta, carimbo do status, marca-texto na palavra em destaque,
+// reimpressão da palavra, linha do qual, contador na prova e, se houver, o carimbo da lacuna (K.lacuna, ex.: "QUEM PAGA?").
+// T = { fim, selo, marca, qual, prova, lacuna } em segundos (use LEAD e cap(i) na cena). Devolve a lista de sons.
+function numPT(v, dec) { return v.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
+function contador(str, p) { // anima o 1º número do texto de 0 até o valor (p de 0 a 1)
+  const m = str.match(/\d{1,3}(?:\.\d{3})*(?:,\d+)?|\d+(?:,\d+)?/); if (!m || p >= 1) return str;
+  const dec = (m[0].split(',')[1] || '').length, v = parseFloat(m[0].replace(/\./g, '').replace(',', '.'));
+  return str.replace(m[0], numPT(v * eOut3(p), dec));
+}
+function abertura(t, K, x, y0, maxW, T, opt = {}) {
+  const { max = 132, zoom = .06 } = opt, fim = T.fim || 4, cor = K.cor || 'red';
+  const z = 1 + zoom * eOut3(clamp(t / fim)), cx = W / 2, cy = 700; // aproximação lenta, sem corte
+  for (const k in LX) { LX[k].save(); LX[k].transform(z, 0, 0, z, cx * (1 - z), cy * (1 - z)); }
+  // mesmo cálculo de tamanho do fraseBloco, para achar onde ficam as palavras em destaque
+  let s = max, ls; do { ls = wrap(K.frase, F.bs(s), maxW); if (ls.length <= 4 && ls.every(l => measure(l, F.bs(s)) <= maxW)) break; s -= 4; } while (s > 104);
+  const font = F.bs(s), dest = new Set((K.destaque || []).map(w => w.toUpperCase())), boxes = [];
+  let yy = y0 + 70 + s * .9;
+  for (const l of ls) { let xx = x; for (const w of l.split(' ')) { const c = w.replace(/[^\p{L}\p{N}%$]/gu, '').toUpperCase(); if (dest.has(c)) boxes.push([xx, yy, measure(w, font)]); xx += measure(w + ' ', font); } yy += s; }
+  // marca-texto amarelo correndo atrás das palavras em destaque (camada amarela fica embaixo da tinta)
+  if (step12(t) >= T.marca) { const p = Math.ceil(clamp((step12(t) - T.marca) / .45) * 6) / 6; for (const [bx, by, bw] of boxes) LX.yellow.fillRect(bx - 12, by - s * .66, (bw + 24) * p, s * .62); }
+  if (K.status) stamp(t, T.selo, K.status, x + 10, y0, { size: 36, layer: cor === 'red' ? 'red' : 'blue', rot: -3 });
+  const prova = K.prova ? contador(K.prova, step12(t) >= T.prova ? clamp((step12(t) - T.prova) / .7) : 0) : null;
+  fraseBloco(t, -1, Object.assign({}, K, { status: null, prova }), x, y0 + 70, maxW, { max, tQual: T.qual, tProva: T.prova });
+  if (K.lacuna && T.lacuna != null) stamp(t, T.lacuna, K.lacuna, W - 90, y0 + 30, { size: 40, layer: 'red', rot: 6, align: 'right' });
+  for (const k in LX) LX[k].restore();
+}
+function aberturaSons(K, T) { const s = [{ t: T.selo, k: 'thud' }, { t: T.marca, k: 'pencil', d: .45 }, { t: T.qual, k: 'click' }, { t: T.prova, k: 'tick' }]; if (K.lacuna && T.lacuna != null) s.push({ t: T.lacuna, k: 'thud' }); return s.filter(e => e.t != null && e.t >= 0); }

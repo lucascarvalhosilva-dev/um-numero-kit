@@ -74,7 +74,7 @@ const SEQ = [
   { at: 0, src: (D.capa && D.capa.fonte) || D.gancho.fonte, draw(t) { // quadro 0 = capa (v4.27): frase já impressa (t0 = -1)
       // v4.29: esta folha cobre SÓ o gancho (até a 1ª pausa, ~3–4 s). Nada parado: a linha do qual entra ~1 s e a prova na 2ª frase do gancho.
       // O contexto ("o que aconteceu, quem, quando") abre a folha seguinte: o próximo bloco começa em cap(2) ou no 1º trecho depois da pausa.
-      if (D.capa && D.capa.modo === 'frase') abertura(t, D.capa, X0, 400, 900, ABRE); // v4.30: abertura animada (base-prim.js)
+      if (D.capa && D.capa.modo === 'frase') aberturaEstilo(t, D.capa, X0, 400, 900, ABRE); // v4.30: abertura animada (base-prim.js; capa.estilo A, B ou C)
       else { bigNum(t, -1, `${D.gancho.valor} ${D.gancho.unidade}`, X0, 700, 260, 900, 'blue', 'red'); ptxt('ink', t, -1, D.gancho.desc, X0 + 4, 790, F.ni(56)); } } },
   { at: cap(2), src: D.status.fonte, draw(t, s) { // contexto: status exato (v4.29: começa logo depois do gancho, nunca dentro da folha da capa)
       statusLine(t, s, D.status.etapas, s + 2.4); stamp(t, s + 2.8, D.status.aviso, X0 + 10, 1120, { size: 40, layer: 'red', rot: -2 }); } },
@@ -113,7 +113,7 @@ function draw(t) {
     ctx.save(); ctx.beginPath(); ctx.rect(0, top, W, H); ctx.clip(); paper(); clearLayers(); if (nx.at !== END0) header(); composite(t); ctx.restore(); }
 }
 window.DURATION = DUR;
-window.SFX = SEQ.slice(1).map(b => ({ t: Math.max(0, b.at - SHEET), k: 'press' })).concat([{ t: END0 + .35, k: 'drop' }]).concat(D.capa && D.capa.modo === 'frase' ? aberturaSons(D.capa, ABRE) : []);
+window.SFX = SEQ.slice(1).map(b => ({ t: Math.max(0, b.at - SHEET), k: 'press' })).concat([{ t: END0 + .35, k: 'drop' }]).concat(D.capa && D.capa.modo === 'frase' ? aberturaEstiloSons(D.capa, ABRE) : []);
 window.render = (t, fmt = 'jpeg') => { draw(t); return fmt === 'png' ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', .93); };
 window.ready = fontsReady;
 </script></body></html>

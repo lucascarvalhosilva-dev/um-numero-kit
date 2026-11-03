@@ -96,10 +96,20 @@ def folhas(pg, minimo=4.0):
     """v4.2: cada folha (bloco do SEQ) fica no mínimo 4 s na tela, de preferência 5 a 8 s; 10 a 14 folhas em 80–90 s."""
     ats = pg.evaluate('SEQ.map(b => b.at)'); end = pg.evaluate('SEQ[SEQ.length - 1].at')
     durs = [round(ats[i + 1] - ats[i], 2) for i in range(len(ats) - 1)]
-    curtas = [(i, d) for i, d in enumerate(durs) if d < minimo]
+    # v4.29: a folha da chamada para seguir pode ter 2,5 s (nunca juntar a chamada com a frase final); a 1ª folha (capa) cobre só o gancho: até 5 s
+    caps = pg.evaluate('CAPS.map(c => [c.t0, c.txt])')
+    def tem_siga(i):
+        a, z = ats[i], (ats[i + 1] if i + 1 < len(ats) else 1e9)
+        return any(a - .05 <= t0 < z and re.match(r'\s*siga\b', txt, re.I) for t0, txt in caps)
+    cta = [i for i in range(len(durs)) if tem_siga(i)]
+    curtas = [(i, d) for i, d in enumerate(durs) if d < (2.5 if i in cta else minimo)]
     print(f'folhas: {len(durs)} · menor {min(durs):.2f} s · média {sum(durs) / len(durs):.2f} s')
-    for i, d in enumerate(durs): print(f'  folha {i:2d} · início {ats[i]:6.2f} s · {d:5.2f} s' + ('  <-- ABAIXO DE 4 s' if d < minimo else ''))
-    if curtas: print(f'ATENÇÃO: {len(curtas)} folha(s) abaixo de {minimo} s — junte com a vizinha ou estique antes de renderizar')
+    for i, d in enumerate(durs): print(f'  folha {i:2d} · início {ats[i]:6.2f} s · {d:5.2f} s' + ('  (chamada para seguir)' if i in cta else '') + ('  <-- ABAIXO DO MÍNIMO' if (i, d) in curtas else ''))
+    if curtas: print(f'ATENÇÃO: {len(curtas)} folha(s) abaixo do mínimo — junte com a vizinha ou estique antes de renderizar (nunca a chamada para seguir com a frase final)')
+    if durs and durs[0] > 5: print(f'ERRO: a 1ª folha (capa) fica {durs[0]:.1f} s parada; ela cobre só o gancho (até 5 s). Comece o contexto numa folha nova.')
+    for i in cta:
+        a, z = ats[i], (ats[i + 1] if i + 1 < len(ats) else 1e9)
+        if sum(1 for t0, _ in caps if a - .05 <= t0 < z) > 1: print(f'ERRO: a folha {i} junta a chamada para seguir com outra frase. A chamada fica sozinha na folha dela.')
 
 def capa(p):
     if not (p / 'capa.html').exists(): return

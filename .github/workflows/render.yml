@@ -1,0 +1,32 @@
+name: Render pelo painel
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/10 10-23 * * *"   # 7h às 20h50 de Brasília, a cada 10 minutos
+concurrency: { group: render, cancel-in-progress: false }
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Há pedido na fila?
+        id: fila
+        env: { PAINEL_RENDER_URL: "${{ secrets.PAINEL_RENDER_URL }}" }
+        run: |
+          n=$(curl -s "$PAINEL_RENDER_URL?espiar=1" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("pendentes",0))' || echo 0)
+          echo "pendentes=$n"; echo "n=$n" >> "$GITHUB_OUTPUT"
+      - if: steps.fila.outputs.n != '0'
+        uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Dependências
+        if: steps.fila.outputs.n != '0'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-dejavu > /dev/null
+          pip install -q numpy playwright
+          (cd kit && npm install --silent --no-save @fontsource/big-shoulders-display @fontsource/newsreader @fontsource/fragment-mono)
+          python -m playwright install --with-deps chromium > /dev/null
+      - name: Render
+        if: steps.fila.outputs.n != '0'
+        env: { PAINEL_RENDER_URL: "${{ secrets.PAINEL_RENDER_URL }}" }
+        run: python3 ci/render_painel.py

@@ -1,0 +1,102 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../../fonts.css">
+<script src="../../common.js"></script><script src="dados.js"></script></head>
+<body><canvas id="c"></canvas>
+<script>
+// UM NÚMERO — INFOGRÁFICO MUDO 1080x1920 · v2 (23/10/2026) · Inflação (IPCA) 1980–2026
+// v2: só o gráfico, do quadro 0 ao fim (sem tela de abertura, sem tela final); mais lento; IPCA no título;
+//     marcações nos pontos fora da curva acumulando na legenda. Números só em dados.js.
+const W = 1080, H = 1920;
+const D = window.DADOS;
+const cv = document.getElementById('c'); cv.width = W; cv.height = H;
+const ctx = cv.getContext('2d');
+const C = { paper: '#F3EEE3', ink: '#1E1E24', blue: '#3255A4', red: '#F65058', yellow: '#FFD23F', sand: '#D9D1C1' };
+</script>
+<script src="../../base-prim.js"></script>
+<script>
+const X0 = 70, XR = 1010;
+const P = D.serie.pontos, N = P.length, ULT = P[N - 1];
+const iMax = P.reduce((m, p, i) => p[1] > P[m][1] ? i : m, 0);
+const pct = v => (v >= 100 ? Math.round(v).toLocaleString('pt-BR') : v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + '%';
+const idx = ano => P.findIndex(q => q[0] === ano);
+const MK = D.marcos.map(m => ({ ...m, i: idx(m.ano) }));
+
+// ---------- tempos (s) ----------
+const ROT = { lead: 1.2, antes: 1.25, depois: 1.0, marco: .8, virada: 1.4, fim: 4.6 };
+const TY = []; { let t = ROT.lead; P.forEach((p, i) => { TY.push(t); if (MK.some(m => m.i === i)) t += ROT.marco; if (p[0] === D.virada) t += ROT.virada; t += p[0] < D.virada ? ROT.antes : ROT.depois; }); }
+const DUR = TY[N - 1] + ROT.fim;
+// pausa: depois de chegar ao ponto i, a linha espera (marco/virada) antes de seguir
+const HOLD = P.map((p, i) => (MK.some(m => m.i === i) ? ROT.marco : 0) + (p[0] === D.virada ? ROT.virada : 0));
+function pos(t) { if (t <= TY[0]) return 0; for (let i = 0; i < N - 1; i++) if (t < TY[i + 1]) { const a = TY[i] + HOLD[i]; return i + clamp((t - a) / (TY[i + 1] - a)); } return N - 1; }
+
+// ---------- componentes ----------
+function header() {
+  LX.blue.font = F.bs(54); LX.blue.letterSpacing = '1px'; LX.blue.textAlign = 'left'; LX.blue.fillText('UM NÚMERO', X0, 205);
+  LX.ink.font = F.mo(20); LX.ink.letterSpacing = '2px'; const w = LX.ink.measureText(D.tema).width; LX.ink.fillText(D.tema, XR - w, 199); LX.ink.fillRect(X0, 226, XR - X0, 2);
+}
+const fill = (lay, txt, x, y, font, align = 'left') => { const c = LX[lay]; c.font = font; c.letterSpacing = lsOf(font); c.textAlign = align; c.fillText(txt, x, y); c.textAlign = 'left'; };
+const knock = (lay, x, y, w, h, txt, font, tx, ty) => { const c = LX[lay]; c.fillRect(x, y, w, h); c.save(); c.globalCompositeOperation = 'destination-out'; c.font = font; c.letterSpacing = lsOf(font); c.fillText(txt, tx, ty); c.restore(); };
+
+// ---------- gráfico (escala logarítmica) ----------
+const G = { x0: 175, x1: 960, top: 680, bot: 1080, vmax: 3000 };
+const gx = i => G.x0 + (G.x1 - G.x0) * i / (N - 1);
+const gy = v => G.bot - (Math.log10(v) / Math.log10(G.vmax)) * (G.bot - G.top);
+const ptAt = f => { const i = Math.floor(f), j = Math.min(i + 1, N - 1), k = f - i; return [lerp(gx(i), gx(j), k), lerp(gy(P[i][1]), gy(P[j][1]), k)]; };
+const layOf = i => P[i][0] < D.virada ? 'red' : 'blue';
+
+function draw0(t) {
+  const p = pos(t), iNow = Math.floor(p + 1e-6), cur = P[iNow];
+  header();
+  stamp(t, -1, `FONTE: ${D.serie.fonteCarimbo}`, X0, 300, { size: 17, rot: -1.5 });
+  // título: o que está sendo mostrado
+  fill('ink', D.titulo, X0, 390, F.bs(64));
+  fill('ink', D.sub, X0, 432, F.mo(21));
+  // contador: ano e valor do último ano alcançado (sem valor interpolado)
+  fill('ink', cur[0] === ULT[0] ? `${cur[0]}*` : String(cur[0]), X0, 580, F.bs(140));
+  const big = pct(cur[1]), lay = cur[0] <= D.virada ? 'red' : 'blue', sh = lay === 'red' ? 'blue' : 'red', fnt = F.bs(140);
+  LX[sh].save(); LX[sh].translate(5, 4); halftoneText(LX[sh], big, XR - measure(big, fnt), 580, fnt); LX[sh].restore();
+  fill(lay, big, XR, 580, fnt, 'right');
+  if (cur[0] === ULT[0]) fill('ink', `* ${D.serie.ultimoRotulo}`, XR, 612, F.mo(17), 'right');
+  // grade e eixos (já impressos no quadro 0)
+  [1, 10, 100, 1000].forEach(v => { const y = gy(v); fill('ink', pct(v).replace(',00', ''), X0, y + 7, F.mo(19)); dotted(LX.ink, G.x0 - 10, y, G.x1 + 10, y, 2); });
+  line(LX.ink, G.x0, G.bot + 30, G.x1 + 10, G.bot + 30, 3);
+  halfRect(LX.red, G.x0, G.top - 30, G.x1 - G.x0 + 10, gy(D.zonaAlta) - G.top + 30, true);
+  { const lb = `ACIMA DE ${D.zonaAlta}% AO ANO`, f = F.mo(17), w = measure(lb, f) + 22; knock('ink', G.x1 + 10 - w, gy(D.zonaAlta) - 32, w, 32, lb, f, G.x1 + 21 - w, gy(D.zonaAlta) - 10); }
+  // anos no eixo: impressos quando a linha passa
+  P.forEach((q, i) => { if ((q[0] % 10 === 0 || i === N - 1) && p >= i - .01) ptxt('ink', t, TY[i], String(q[0]), gx(i), G.bot + 82, F.mo(20), 'center'); });
+  // a linha
+  for (let i = 0; i < Math.min(p, N - 1); i++) {
+    const a = [gx(i), gy(P[i][1])], b = ptAt(Math.min(p, i + 1)), c = LX[layOf(i)];
+    c.save(); c.lineWidth = 9; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = '#000'; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); c.restore();
+  }
+  // recorde: carimbo fica no pico assim que a linha passa por ele
+  if (p >= iMax && step12(t) >= TY[iMax]) { const lb = `RECORDE · ${P[iMax][0]} · ${pct(P[iMax][1])}`, f = F.mo(18), w = measure(lb, f) + 22, x = gx(iMax) + 30, y = gy(P[iMax][1]) - 22; knock('red', x, y, w, 32, lb, f, x + 11, y + 22); }
+  // pontos fora da curva: elo no eixo + guia até o ponto + linha na legenda (acumula)
+  MK.forEach((m, k) => { if (p < m.i - 1e-6) return; const tt = TY[m.i], v = P[m.i][1];
+    dotted(LX.ink, gx(m.i), G.bot + 10, gx(m.i), gy(v) + 16, 3); node(t, tt, k, gx(m.i), G.bot + 30, 18, 'ink');
+    const y = 1232 + k * 42; node(t, tt, k, X0 + 20, y - 8, 18, 'ink');
+    ptxt('ink', t, tt + .05, `${m.ano} · ${pct(v)} · ${m.txt}`, X0 + 54, y, F.mo(21)); });
+  // cabeça da linha
+  const h = ptAt(p), hl = LX[cur[0] <= D.virada ? 'red' : 'blue']; hl.beginPath(); hl.arc(h[0], h[1], 14, 0, 7); hl.fill();
+  LX.ink.save(); LX.ink.lineWidth = 3; LX.ink.strokeStyle = '#000'; LX.ink.beginPath(); LX.ink.arc(h[0], h[1], 22, 0, 7); LX.ink.stroke(); LX.ink.restore();
+}
+
+// ---------- motor ----------
+function clearLayers() { for (const k in LX) { LX[k].clearRect(0, 0, W, H); LX[k].fillStyle = '#000'; LX[k].textAlign = 'left'; } }
+function paper() { ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H); ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .45; ctx.drawImage(grain, 0, 0); ctx.restore(); }
+function composite(t) {
+  const off = { blue: [0, 0], red: [2.5 + 2.2 * Math.sin(t * 1.7), 1.5 + 1.6 * Math.cos(t * 1.3)], ink: [-.8 * Math.sin(t * 1.1), .6], yellow: [1.5, -1.5] };
+  for (const k of ['yellow', 'blue', 'red', 'ink']) {
+    const x = LX[k]; x.save(); x.globalCompositeOperation = 'source-in'; x.fillStyle = COL[k]; x.fillRect(0, 0, W, H);
+    x.globalCompositeOperation = 'destination-out'; const s = Math.floor(t * 12) % 4; x.drawImage(speck[k], -s * 7, -s * 5, W + 40, H + 40); x.restore();
+    ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = k === 'ink' ? .95 : .9; ctx.drawImage(layers[k], off[k][0], off[k][1]); ctx.restore();
+  }
+}
+function draw(t) { ctx.setTransform(1, 0, 0, 1, 0, 0); paper(); clearLayers(); draw0(t); composite(t); }
+window.DURATION = DUR;
+window.TEMPOS = { dur: +DUR.toFixed(2), anos: TY.map(x => +x.toFixed(2)) };
+// sons: tique a cada ano, elo nos marcos, carimbo no recorde
+window.SFX = P.map((q, i) => ({ t: TY[i], k: MK.some(m => m.i === i) ? 'thud' : 'tick' })).concat([{ t: TY[iMax], k: 'click' }]);
+window.render = (t, fmt = 'jpeg') => { draw(t); return fmt === 'png' ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', .93); };
+window.ready = fontsReady;
+</script></body></html>

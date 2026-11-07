@@ -14,7 +14,10 @@ jobs:
         id: fila
         env: { PAINEL_RENDER_URL: "${{ secrets.PAINEL_RENDER_URL }}" }
         run: |
-          n=$(curl -s "$PAINEL_RENDER_URL?espiar=1" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("pendentes",0))' || echo 0)
+          code=$(curl -s -o fila.json -w '%{http_code}' "$PAINEL_RENDER_URL?espiar=1" || echo 000)
+          echo "painel respondeu HTTP $code"
+          if [ "$code" != "200" ]; then echo "::warning::painel recusou ($code): confira o RENDER_TOKEN no Vercel e o PAINEL_RENDER_URL aqui"; n=0
+          else n=$(python3 -c 'import json; print(json.load(open("fila.json")).get("pendentes",0))'); fi
           echo "pendentes=$n"; echo "n=$n" >> "$GITHUB_OUTPUT"
       - if: steps.fila.outputs.n != '0'
         uses: actions/setup-python@v5

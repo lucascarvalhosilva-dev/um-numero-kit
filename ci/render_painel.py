@@ -27,7 +27,9 @@ def processar(b):
     shutil.copytree(KIT / 'vertical' / 'modelo', p)
     (p / 'texto.txt').write_text(b['texto'], encoding='utf-8')
     (p / 'dados.js').write_text(b['dados_js'], encoding='utf-8')
-    if b.get('cena_html'): (p / 'cena.html').write_text(b['cena_html'], encoding='utf-8')
+    if not b.get('cena_html'):  # sem cena própria o modelo tem 5 folhas e o vídeo sai parado (V1 de 09/11)
+        raise RuntimeError('o painel não tem cena.html para este vertical; escreva a cena (checar_cena.py) antes de renderizar')
+    (p / 'cena.html').write_text(b['cena_html'], encoding='utf-8')
     if b.get('capa_html'): (p / 'capa.html').write_text(b['capa_html'], encoding='utf-8')
     urllib.request.urlretrieve(b['audio_url'], p / 'orig.mp3')
     log, ok, caminhos = [], False, {}

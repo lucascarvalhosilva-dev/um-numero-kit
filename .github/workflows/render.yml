@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "*/10 10-23 * * *"   # 7h às 20h50 de Brasília, a cada 10 minutos
 concurrency: { group: render, cancel-in-progress: false }
+permissions:
+  contents: read
+  actions: write
 jobs:
   render:
     runs-on: ubuntu-latest
@@ -33,3 +36,10 @@ jobs:
         if: steps.fila.outputs.n != '0'
         env: { PAINEL_RENDER_URL: "${{ secrets.PAINEL_RENDER_URL }}" }
         run: python3 ci/render_painel.py
+      - name: Sobrou pedido na fila? Dispara de novo
+        if: always() && steps.fila.outputs.n != '0'
+        env: { PAINEL_RENDER_URL: "${{ secrets.PAINEL_RENDER_URL }}", GH_TOKEN: "${{ github.token }}" }
+        run: |
+          n=$(curl -s "$PAINEL_RENDER_URL?espiar=1" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("pendentes",0))' || echo 0)
+          echo "pendentes depois da rodada: $n"
+          if [ "$n" != "0" ]; then gh workflow run render.yml --ref main -R "$GITHUB_REPOSITORY"; fi

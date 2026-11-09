@@ -21,7 +21,59 @@ def subir(url, arq, tipo):
 LIMITE_S = 75 * 60   # não começa vídeo novo depois disso (o job do workflow tem 100 min)
 MAX_VIDEOS = 8
 
+def dur_da_cena(html, q):
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as pw:
+        br = pw.chromium.launch(args=['--allow-file-access-from-files']); pg = br.new_page(viewport={'width': 1080, 'height': 1920})
+        pg.goto(f"file://{KIT / html}?w=1080&h=1920&{q}"); pg.evaluate('window.ready'); d = pg.evaluate('window.DURATION'); br.close()
+    return float(d)
+
+def processar_infog(b):
+    """Infográfico (desde 09/11): tema.js do painel -> MP4 de ~62 s + capa (último quadro) -> Storage."""
+    nome = f"painel-{b['peca'][:8]}"; tema = KIT / 'infog' / 'temas' / f'{nome}.js'
+    tema.parent.mkdir(exist_ok=True); tema.write_text(b['tema_js'], encoding='utf-8')
+    out = KIT / 'infog' / f'{nome}.mp4'; capa = KIT / 'infog' / f'{nome}-capa.jpg'; log, caminhos = [], {}
+    try:
+        d = dur_da_cena('infog/infog.html', f't={nome}'); log.append(f'duração {d:.1f} s')
+        if not 61 <= d <= 66: raise RuntimeError(f'duração {d:.1f} s fora de 61–66 s (motor)')
+        r = subprocess.run(['python3', 'render.py', 'infog/infog.html', '1080', '1920', str(out), '--dur', f'{d:.2f}', '--q', f't={nome}'], cwd=KIT, capture_output=True, text=True)
+        log.append(r.stdout + r.stderr)
+        if r.returncode or not out.exists(): raise RuntimeError('render.py falhou')
+        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-sseof', '-0.5', '-i', str(out), '-frames:v', '1', '-q:v', '2', str(capa)], check=True)
+        for k, arq, tipo in [('video', out, 'video/mp4'), ('capa', capa, 'image/jpeg')]:
+            if subir(b['upload'].get(k), arq, tipo): caminhos[k] = b['caminhos'][k]
+        log.append(f'ok {out.name} · {out.stat().st_size:,} bytes')
+    except Exception as e:
+        log.append(f'ERRO: {e}')
+    ok = 'video' in caminhos and 'capa' in caminhos
+    pedir('POST', {'job': b['job'], 'ok': ok, 'log': '\n'.join(log), 'caminhos': caminhos if ok else {}})
+    return ok
+
+def processar_carrossel(b):
+    """Carrossel (desde 09/11): dados.js (window.CARR) -> slides 1080x1350 (4:5, servem no Instagram e no TikTok) -> Storage."""
+    pasta = KIT / 'carrossel' / f"painel-{b['peca'][:8]}"
+    if pasta.exists(): shutil.rmtree(pasta)
+    pasta.mkdir(parents=True); (pasta / 'dados.js').write_text(b['dados_js'], encoding='utf-8'); log, caminhos = [], {}
+    try:
+        r = subprocess.run(['python3', 'carrossel/render_carrossel.py', str(pasta)], cwd=KIT, capture_output=True, text=True)
+        log.append(r.stdout + r.stderr)
+        if r.returncode: raise RuntimeError('render_carrossel.py falhou')
+        slides = sorted(pasta.glob('ig-*.jpg'))
+        if not 5 <= len(slides) <= 10: raise RuntimeError(f'{len(slides)} slides (o normal é de 7 a 9)')
+        for i, arq in enumerate(slides, 1):
+            k = f'slide{i}'
+            if subir(b['upload'].get(k), arq, 'image/jpeg'): caminhos[k] = b['caminhos'][k]
+        if len(caminhos) != len(slides): raise RuntimeError(f'subiram {len(caminhos)} de {len(slides)} slides')
+        log.append(f'ok {len(slides)} slides')
+    except Exception as e:
+        log.append(f'ERRO: {e}')
+    ok = bool(caminhos) and not any(l.startswith('ERRO') for l in log)
+    pedir('POST', {'job': b['job'], 'ok': ok, 'log': '\n'.join(log), 'caminhos': caminhos if ok else {}})
+    return ok
+
 def processar(b):
+    if b.get('tipo') == 'infografico': return processar_infog(b)
+    if b.get('tipo') == 'carrossel': return processar_carrossel(b)
     nome = f"painel-{b['nome']}"; p = KIT / 'vertical' / nome
     if p.exists(): shutil.rmtree(p)
     shutil.copytree(KIT / 'vertical' / 'modelo', p)

@@ -39,6 +39,13 @@ def processar_infog(b):
         r = subprocess.run(['python3', 'render.py', 'infog/infog.html', '1080', '1920', str(out), '--dur', f'{d:.2f}', '--q', f't={nome}'], cwd=KIT, capture_output=True, text=True)
         log.append(r.stdout + r.stderr)
         if r.returncode or not out.exists(): raise RuntimeError('render.py falhou')
+        # o Storage recusa arquivo acima de 50 MB (HTTP 400; calor de 10/11 passou disso): recomprime para ~40 MB
+        if out.stat().st_size > 45 * 1024 * 1024:
+            kbps = int(40 * 8 * 1024 / d); leve = out.with_name(out.stem + '-leve.mp4')
+            subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', str(out), '-c:v', 'libx264', '-preset', 'veryfast',
+                            '-b:v', f'{kbps}k', '-maxrate', f'{kbps}k', '-bufsize', f'{2 * kbps}k', '-pix_fmt', 'yuv420p',
+                            '-c:a', 'copy', '-movflags', '+faststart', str(leve)], check=True)
+            log.append(f'recomprimido: {out.stat().st_size:,} -> {leve.stat().st_size:,} bytes'); leve.replace(out)
         subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-sseof', '-0.5', '-i', str(out), '-frames:v', '1', '-q:v', '2', str(capa)], check=True)
         for k, arq, tipo in [('video', out, 'video/mp4'), ('capa', capa, 'image/jpeg')]:
             if subir(b['upload'].get(k), arq, tipo): caminhos[k] = b['caminhos'][k]

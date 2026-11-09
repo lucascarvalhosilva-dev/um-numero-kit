@@ -109,6 +109,8 @@ def folhas(pg, minimo=4.0):
     av = pg.evaluate('window.ABRE_AVISO || ""')
     if av: print('ERRO na abertura (v4.30):', av)
     if durs and durs[0] > 5: print(f'ERRO: a 1ª folha (capa) fica {durs[0]:.1f} s parada; ela cobre só o gancho (até 5 s). Comece o contexto numa folha nova.')
+    for i, d in enumerate(durs):
+        if i not in cta and d > 12: print(f'ERRO: a folha {i} fica {d:.1f} s na tela (máximo 12 s); a tela fica parada com só o áudio. Divida em mais blocos: use ancorar(n) com n de 8 a 12.')
     for i in cta:
         a, z = ats[i], (ats[i + 1] if i + 1 < len(ats) else 1e9)
         if sum(1 for t0, _ in caps if a - .05 <= t0 < z) > 1: print(f'ERRO: a folha {i} junta a chamada para seguir com outra frase. A chamada fica sozinha na folha dela.')

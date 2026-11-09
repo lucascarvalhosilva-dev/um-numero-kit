@@ -36,6 +36,8 @@ def main():
     try:
         roda('audio', nome)
         roda('previa', nome)
+        erros = [l for l in log[-1].splitlines() if l.startswith('ERRO')]
+        if erros: raise RuntimeError(f'a cena tem {len(erros)} erro(s); o vídeo NÃO foi renderizado. Refaça a cena com ancorar(n) e peça o render de novo')
         fotos = sorted((p / 'previa').glob('*.png'))
         if fotos:  # folha de contato reduzida
             subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-pattern_type', 'glob', '-i', str(p / 'previa' / '*.png'),

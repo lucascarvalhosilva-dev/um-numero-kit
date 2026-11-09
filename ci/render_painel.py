@@ -1,7 +1,9 @@
 """Render de vertical pedido pelo painel (roda no GitHub Actions).
 Busca o próximo pedido em PAINEL_RENDER_URL, monta kit/vertical/<nome>/, roda audio, previa e render,
-sobe vídeo, capa e folha de prévia pelos links assinados e avisa o painel. Nunca gera áudio: usa o do painel."""
-import os, sys, json, shutil, subprocess, pathlib, urllib.request
+sobe vídeo, capa e folha de prévia pelos links assinados e avisa o painel. Nunca gera áudio: usa o do painel.
+Desde 09/11: cada execução esvazia a fila (um vídeo atrás do outro), porque o GitHub cancela execuções
+que ficam esperando na mesma fila de concorrência e o agendamento de 10 em 10 min quase não roda."""
+import os, sys, json, time, shutil, subprocess, pathlib, urllib.request
 
 URL = os.environ['PAINEL_RENDER_URL']
 KIT = pathlib.Path(__file__).resolve().parent.parent / 'kit'
@@ -16,10 +18,10 @@ def subir(url, arq, tipo):
     req = urllib.request.Request(url, method='PUT', data=arq.read_bytes(), headers={'Content-Type': tipo, 'x-upsert': 'true'})
     with urllib.request.urlopen(req, timeout=300): return True
 
-def main():
-    b = pedir()
-    if b.get('nada'): print('fila vazia'); return
-    if b.get('erro'): print('pedido inválido:', b['erro']); return
+LIMITE_S = 75 * 60   # não começa vídeo novo depois disso (o job do workflow tem 100 min)
+MAX_VIDEOS = 8
+
+def processar(b):
     nome = f"painel-{b['nome']}"; p = KIT / 'vertical' / nome
     if p.exists(): shutil.rmtree(p)
     shutil.copytree(KIT / 'vertical' / 'modelo', p)
@@ -49,6 +51,23 @@ def main():
     except Exception as e:
         log.append(f'ERRO: {e}')
     pedir('POST', {'job': b['job'], 'ok': ok, 'log': '\n'.join(log), 'caminhos': caminhos})
-    if not ok: sys.exit(1)
+    return ok
+
+def main():
+    inicio, feitos, falhas = time.time(), 0, 0
+    while feitos < MAX_VIDEOS and time.time() - inicio < LIMITE_S:
+        b = pedir()
+        if b.get('nada'): print('fila vazia'); break
+        if b.get('erro'): print('pedido inválido:', b['erro']); break
+        print(f'=== vídeo {feitos + 1}: {b.get("nome")} ===')
+        try: ok = processar(b)
+        except Exception as e:  # falha antes do render (ex.: baixar o áudio): avisa o painel e segue a fila
+            print('falhou antes do render:', e); ok = False
+            try: pedir('POST', {'job': b['job'], 'ok': False, 'log': f'ERRO: {e}', 'caminhos': {}})
+            except Exception as e2: print('nem o aviso ao painel passou:', e2)
+        if not ok: falhas += 1
+        feitos += 1
+    print(f'renderizados: {feitos} · com falha: {falhas}')
+    if falhas: sys.exit(1)
 
 if __name__ == '__main__': main()

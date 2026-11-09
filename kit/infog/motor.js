@@ -132,8 +132,10 @@ const MODOS = {
     yGrid(G, o.ticks, gy, o.tickFmt); line(LX.ink, G.x0, G.bot + 30, G.x1 + 10, G.bot + 30, 3);
     const a = pathTo(p, gxN, YA), b = pathTo(p, gxN, YB); stroke('ink', b, 7); stroke('blue', a, 9);
     const ha = a[a.length - 1], hb = b[b.length - 1]; head('ink', hb[0], hb[1]); head('blue', ha[0], ha[1]);
-    fill('blue', o.nomeA, ha[0] + 30 > G.x1 - 60 ? ha[0] - 30 : ha[0] + 30, ha[1] + (ha[1] > hb[1] ? 44 : -28), F.mo(26), ha[0] + 30 > G.x1 - 60 ? 'right' : 'left');
-    fill('ink', o.nomeB, hb[0] + 30 > G.x1 - 60 ? hb[0] - 30 : hb[0] + 30, hb[1] + (hb[1] >= ha[1] ? 44 : -28), F.mo(26), hb[0] + 30 > G.x1 - 60 ? 'right' : 'left');
+    // 09/11: o rótulo vira para a esquerda quando não cabe até a margem (nome longo, ex.: ARGENTINA, era cortado)
+    const vira = (h, nome) => h[0] + 30 + measure(nome, F.mo(26)) > XR;
+    fill('blue', o.nomeA, vira(ha, o.nomeA) ? ha[0] - 30 : ha[0] + 30, ha[1] + (ha[1] > hb[1] ? 44 : -28), F.mo(26), vira(ha, o.nomeA) ? 'right' : 'left');
+    fill('ink', o.nomeB, vira(hb, o.nomeB) ? hb[0] - 30 : hb[0] + 30, hb[1] + (hb[1] >= ha[1] ? 44 : -28), F.mo(26), vira(hb, o.nomeB) ? 'right' : 'left');
     axisMarcos(t, p, gxN, k => Math.min(YA(k), YB(k)), G.bot + 30); xLabels(t, p, gxN, G.bot + 82);
   },
   calor(t, p, i) { // mapa de calor: linhas = anos, colunas = meses

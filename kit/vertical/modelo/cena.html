@@ -27,6 +27,25 @@ CAPS.forEach(c => { c.t0 += LEAD; c.t1 += LEAD; });
 const END0 = LEAD + CUT.dur + BREATH, DUR = END0 + ENDC;
 function cap(i) { const c = CAPS[Math.min(i, CAPS.length - 1)]; return c.t0; }
 function at(key, n = 0) { let k = 0; for (const c of CAPS) if (c.txt.toLowerCase().includes(key.toLowerCase())) { if (k === n) return c.t0; k++; } throw new Error('trecho não achado: ' + key); }
+// v4.31 (09/11/2026): ANCORAR. Em vez de escolher a frase de cada bloco à mão (e errar sem saber o tempo do áudio),
+// use `const A = ancorar(n)`: n = quantos blocos existem DEPOIS da capa (para 75–90 s, de 8 a 12). Devolve n inícios (A[0]..A[n-1]):
+// a capa termina na última frase que começa até 5 s; a chamada "Siga..." e a frase seguinte ganham blocos só delas;
+// o resto divide o tempo igualmente, sempre no começo de uma frase. Escreva `at: A[0]`, `at: A[1]`... na ordem dos blocos.
+function ancorar(n) {
+  const ts = CAPS.map(c => c.t0), N = ts.length;
+  const sig = CAPS.findIndex((c, i) => i > 1 && /^\s*siga\b/i.test(c.txt));
+  let first = 1; for (let i = 1; i < N; i++) if (ts[i] <= 5) first = i;
+  const tail = sig > 0 ? (sig + 1 < N ? [sig, sig + 1] : [sig]) : [];
+  const m = n - 1 - tail.length;
+  if (m < 0) throw new Error(`ancorar(${n}): poucos blocos; use pelo menos ${tail.length + 1}`);
+  const idx = [first], lim = tail.length ? tail[0] - 1 : N - 1, t1 = tail.length ? ts[tail[0]] : ts[N - 1];
+  for (let k = 1; k <= m; k++) {
+    const alvo = ts[first] + (t1 - ts[first]) * k / (m + 1); let best = idx[idx.length - 1] + 1;
+    for (let i = best; i <= lim; i++) if (Math.abs(ts[i] - alvo) < Math.abs(ts[best] - alvo)) best = i;
+    idx.push(Math.min(best, lim));
+  }
+  return idx.concat(tail).map(i => ts[Math.min(i, N - 1)]);
+}
 // ponto no meio de uma frase longa, pela posição da palavra no texto (usado na abertura do split, 16/10)
 function inCap(key, word) { const c = CAPS.find(c => c.txt.toLowerCase().includes(key.toLowerCase())); const i = c.txt.toLowerCase().indexOf(word.toLowerCase()); return c.t0 + (c.t1 - c.t0) * Math.max(0, i) / c.txt.length; }
 
@@ -78,20 +97,21 @@ window.ABRE_AVISO = (() => { const K = D.capa || {}; if (K.modo !== 'frase') ret
   if (K.lacuna && ABRE.fim - ABRE.lacuna < RL(K.lacuna) - .05) a.push('lacuna entra tarde demais para ser lida');
   return a.join(' · '); })();
 const N = CAPS.length, q = f => cap(Math.floor(N * f)); // q(0.4) = frase a 40% do texto (só para o modelo rodar com qualquer texto)
+const A = ancorar(4); // modelo curto (4 blocos depois da capa); num vertical de 75–90 s use ancorar(8) a ancorar(12) e um bloco visual para cada
 const SEQ = [
   { at: 0, src: (D.capa && D.capa.fonte) || D.gancho.fonte, draw(t) { // quadro 0 = capa (v4.27): frase já impressa (t0 = -1)
       // v4.29: esta folha cobre SÓ o gancho (até a 1ª pausa, ~3–4 s). Nada parado: a linha do qual entra ~1 s e a prova na 2ª frase do gancho.
       // O contexto ("o que aconteceu, quem, quando") abre a folha seguinte: o próximo bloco começa em cap(2) ou no 1º trecho depois da pausa.
       if (D.capa && D.capa.modo === 'frase') aberturaEstilo(t, D.capa, X0, 400, 900, ABRE); // v4.30: abertura animada (base-prim.js; capa.estilo A, B ou C)
       else { bigNum(t, -1, `${D.gancho.valor} ${D.gancho.unidade}`, X0, 700, 260, 900, 'blue', 'red'); ptxt('ink', t, -1, D.gancho.desc, X0 + 4, 790, F.ni(56)); } } },
-  { at: cap(2), src: D.status.fonte, draw(t, s) { // contexto: status exato (v4.29: começa logo depois do gancho, nunca dentro da folha da capa)
+  { at: A[0], src: D.status.fonte, draw(t, s) { // contexto: status exato (v4.29: começa logo depois do gancho, nunca dentro da folha da capa)
       statusLine(t, s, D.status.etapas, s + 2.4); stamp(t, s + 2.8, D.status.aviso, X0 + 10, 1120, { size: 40, layer: 'red', rot: -2 }); } },
-  { at: q(.35), src: 'SIMULAÇÃO · PESSOA HIPOTÉTICA', draw(t, s) { // exemplo prático
+  { at: A[1], src: 'SIMULAÇÃO · PESSOA HIPOTÉTICA', draw(t, s) { // exemplo prático
       if (cardHead(t, s + .1, X0, 500, 870, 680, `${D.pessoa.nome} · ${D.pessoa.ocupacao}`, 'blue')) stamp(t, s + .5, 'PESSOA HIPOTÉTICA', 660, 610, { size: 18, rot: 3 });
       weekRow(t, s + .8, 720, [6], D.pessoa.antes); weekRow(t, s + 2.4, 920, [5, 6], D.pessoa.depois); } },
-  { at: q(.6), src: D.numero.fonte, draw(t, s) { // um número por ideia
+  { at: A[2], src: D.numero.fonte, draw(t, s) { // um número por ideia
       bigNum(t, s + .1, `${D.numero.valor} ${D.numero.unidade}`, X0, 600, 170, 900, 'blue', 'red'); ptxt('ink', t, s + .4, D.numero.desc, X0 + 4, 680, F.ni(42)); } },
-  { at: q(.8), src: null, draw(t, s) { // veredito sobre a conta
+  { at: A[3], src: null, draw(t, s) { // veredito sobre a conta
       D.final.opcoes.forEach((w, i) => { const tt = s + .4 + i * 1.1; if (step12(t) < tt) return; LX.ink.font = F.bs(80); LX.ink.fillText('?', X0, 600 + i * 120); bigNum(t, tt, w, X0 + 70, 600 + i * 120, 90, 800, i ? 'red' : 'blue', i ? 'blue' : 'red'); });
       if (step12(t) >= s + 4) bigNum(t, s + 4, D.final.veredito, X0, 1100, 150, 880, 'ink', 'red'); } },
   { at: END0, src: null, draw(t) { endCard(t); } }
